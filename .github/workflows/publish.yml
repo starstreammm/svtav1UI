@@ -53,7 +53,7 @@ jobs:
           cp requirements.txt release/api
           cp nginx_entrypoint.sh release/
 
-          cp api/* backend/
+          cp -r api/* backend/
           cp requirements.txt backend/
 
           tar -czf release.tar.gz release
