@@ -1,0 +1,8 @@
+pypinyin>=0.55.0
+fastapi>=0.141.1,<1
+psutil>=7.2.2,<8
+uvicorn>=0.52.4,<1
+natsort>=8.4.0
+xgboost>=3.4.1,<4
+scikit_learn>=1.9.1,<2
+pandas>=3.0.6,<4

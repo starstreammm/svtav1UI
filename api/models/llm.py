@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, Field
 from typing import Literal, Optional
 from pathlib import Path
 from datetime import datetime
