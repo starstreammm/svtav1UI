@@ -9,14 +9,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.concurrency import asynccontextmanager
 
-from src.database import Database
-from src.logger import Lg
-from src.eta import ETA
-from src.queue import Queue
+from utils.database import Database
+from utils.logger import LoggerBase as lg
+from utils.eta import ETA
+from utils.queue import Queue
 
 from routes.task import task_router
 from routes.path import path_router
-from routes.file import file_router
 from routes.settings import settings_router, SettingsManager
 from routes.plan import plan_router
 
@@ -40,7 +39,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize Components
     print("[2/6] Initializing Logger...")
-    Lg.init()
+    lg.init()
     logger = logging.getLogger("uvicorn.access")
     logger.addFilter(IgnoreHealthFilter())
     print("[3/6] Initializing Database...")
@@ -48,12 +47,12 @@ async def lifespan(app: FastAPI):
     print("[4/6] Loading Configuration...")
     await SettingsManager.init()
     print("[5/6] Training ETA Model...")
-    await ETA.init()
+    ETA.init()
 
     # Create a task queue for processing tasks
     print("[6/6] Initializing Task Queue...")
     app.state.queue = Queue()
-    print(
+    lg.info(
         "All components initialized successfully. Server is ready to accept requests.\n"
     )
 
@@ -67,7 +66,7 @@ async def lifespan(app: FastAPI):
     print("[3/3] Closing database...")
     Database.close()
     shutil.rmtree(Path(__file__).parent / "cache" / "temp", ignore_errors=True)
-    Lg.debug("Server shutdown complete.\n\n\n")
+    lg.debug("Server shutdown complete.\n\n\n")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -83,7 +82,7 @@ app.add_middleware(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: Exception):
-    Lg.error(f"Validation error: {exc}")
+    lg.error(f"Validation error: {exc}")
     return JSONResponse(
         status_code=422,
         content={
@@ -95,7 +94,7 @@ async def validation_exception_handler(request: Request, exc: Exception):
 
 @app.exception_handler(Exception)
 async def all_exception_handler(request: Request, exc: Exception):
-    Lg.error(f"Internal error: {exc}")
+    lg.exception(f"Internal error: {exc}")
     traceback.print_exc()
     return JSONResponse(
         status_code=500,
@@ -107,7 +106,6 @@ async def all_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(path_router)
-app.include_router(file_router)
 app.include_router(task_router)
 app.include_router(settings_router)
 app.include_router(plan_router)

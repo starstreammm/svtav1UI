@@ -12,13 +12,12 @@ import {
 import AdjustRoundedIcon from '@mui/icons-material/AdjustRounded';
 import { useState, useEffect } from "react";
 
-import { pushError } from "~/components/error_popout";
-import { getLocalStorage } from "~/hooks/storage";
-import { api } from "~/hooks/api";
-import type { TranslatorSettings } from "~/hooks/model";
+import type { TranslatorSettings } from "~/models/settings";
 import { SettingItemFrame, SettingTitleFrame } from "~/routes/settings/components/frame";
 import { SettingSlider } from "~/routes/settings/components/slider";
 import PathSelector from "~/components/pathselector";
+import { fetchTranslatorSettings, updateTranslatorSettings, checkLLM } from "./function";
+import { defaultLLMConfig } from "./default";
 
 function split_llm_key(current: string) {
     const parts = current.split(";");
@@ -30,55 +29,22 @@ function split_llm_key(current: string) {
 
 
 export function LLMSettingPage({ embedded = false }: { embedded?: boolean }) {
-    const apiUrl = getLocalStorage("apiUrl", "local");
-    const defaultConfig = {
-        llm_type: "openai-api" as "openai-api" | "llama.cpp" | "mlx",
-        llm_key: null,
-        max_tokens: 8000,
-        max_input: 330,
-        prompt: [
-            {
-                "role": "user",
-                "content": `You are a professional and accurate translator.
-You will receive a multi-line text, and then tranlate it to the target language line-by-line.
-The multi-line text is provided for you to understand the context only.
-Do not infer or guess the meaning of the text.
-Start output the translation with a line 'Singal: yyytttqqq.'.`
-            }
-        ],
-        temperature: 0.13
-    };
-
     // @ts-expect-error
-    const [config, setConfig] = useState<TranslatorSettings>(defaultConfig as TranslatorSettings);
+    const [config, setConfig] = useState<TranslatorSettings>(defaultLLMConfig as TranslatorSettings);
     const [state, setState] = useState<boolean>(false);
 
-    const check = () => {
-        api.get(`${apiUrl}/settings/translator`).json<boolean>()
-            .then(data => { setState(data); })
-            .catch(error => { pushError(error, "Get translator status"); })
-    }
-
-    const fetch = () => {
-        api.get(`${apiUrl}/settings/t`).json<TranslatorSettings>()
-            .then(data => { setConfig(data); })
-            .catch(error => { pushError(error, "Get translator settings"); })
-    }
-
-    const update = (s: TranslatorSettings) => {
-        api.post(`${apiUrl}/settings/t`, { json: s }).json<TranslatorSettings>()
-            .then(data => { setConfig(data); })
-            .catch(error => { pushError(error, "Update translator settings"); })
-    }
+    const check = () => { checkLLM().then(data => { setState(data); }) }
+    const fetch = () => { fetchTranslatorSettings().then(data => setConfig(data)) }
+    const update = (s: TranslatorSettings) => { updateTranslatorSettings(s).then(data => setConfig(data)) }
 
     useEffect(() => { fetch(); check(); }, []);
     useEffect(() => { check(); }, [config.llm_key]);
 
     return (
-        <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", width: "100%", px: 3 }}>
             {!embedded &&
                 <>
-                    <SettingTitleFrame title="LLM Settings" reset={() => update({ ...config, ...defaultConfig })}>
+                    <SettingTitleFrame title="LLM Settings" reset={() => update({ ...config, ...defaultLLMConfig })}>
                         <Tooltip title={"The status of the translator service"} placement="top">
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                 <AdjustRoundedIcon sx={{ color: state ? "success.main" : "error.main" }} />

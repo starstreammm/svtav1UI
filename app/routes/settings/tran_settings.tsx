@@ -1,45 +1,25 @@
 import { Box, Divider, Switch } from '@mui/material';
 import { useState, useEffect } from "react";
 
-import { pushError } from "~/components/error_popout";
-import { getLocalStorage } from "~/hooks/storage";
-import { api } from "~/hooks/api";
-import type { GeneralSettings } from "~/hooks/model";
+import type { TranscodeSettings } from "~/models/settings";
 import { SettingItemFrame, SettingTitleFrame } from "~/routes/settings/components/frame";
 import { SettingSlider } from "~/routes/settings/components/slider";
+import { fetchTranscodeSettings, updateTranscodeSettings } from './function';
+import { defaultTranConfig } from './default';
 
 export default function TranscodeSettingPage() {
-    const apiUrl = getLocalStorage("apiUrl", "local");
-    const defaultConfig = {
-        preset: 6,
-        max_bitrate_mb: 88.8,
-        overshoot_pct: 100,
-        undershoot_pct: 10,
-        maxsection_pct: 6000,
-        keyint: "6s",
-        lookahead: 120,
-        scd: true,
-    };
+    const [config, setConfig] = useState<TranscodeSettings>(defaultTranConfig as TranscodeSettings);
 
-    const [config, setConfig] = useState<GeneralSettings>(defaultConfig as GeneralSettings);
-
-    const fetch = () => {
-        api.get(`${apiUrl}/settings/g`).json<GeneralSettings>()
-            .then(data => { setConfig(data); })
-            .catch(error => { pushError(error, "Get general settings"); })
+    const update = (s: TranscodeSettings) => {
+        updateTranscodeSettings(s).then(data => setConfig(data));
     }
 
-    const update = (s: GeneralSettings) => {
-        api.post(`${apiUrl}/settings/g`, { json: s }).json<GeneralSettings>()
-            .then(data => { setConfig(data); })
-            .catch(error => { pushError(error, "Update general settings"); })
-    }
+    useEffect(() => { fetchTranscodeSettings().then(data => setConfig(data)); }, []);
 
-    useEffect(() => { fetch(); }, []);
 
     return (
-        <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
-            <SettingTitleFrame title="Transcoder Settings" reset={() => update({ ...config, ...defaultConfig })} />
+        <Box sx={{ display: "flex", flexDirection: "column", width: "100%", px: 3 }}>
+            <SettingTitleFrame title="Transcoder Settings" reset={() => update({ ...config, ...defaultTranConfig })} />
             <Divider />
             <SettingItemFrame title="Preset">
                 <SettingSlider
@@ -115,6 +95,26 @@ export default function TranscodeSettingPage() {
                 <Switch
                     checked={config.scd}
                     onChange={(e) => { update({ ...config, scd: e.target.checked }) }}
+                />
+            </SettingItemFrame>
+            <SettingItemFrame title="CRF" desc="Constant Rate Factor, lower is better quality.">
+                <SettingSlider
+                    value={config.crf}
+                    onChange={(v) => { update({ ...config, crf: v }) }}
+                    min={-1}
+                    max={36}
+                    step={1}
+                    field
+                />
+            </SettingItemFrame>
+            <SettingItemFrame title="cpu_used" desc="Encoding quality, lower is slower but better quality.">
+                <SettingSlider
+                    value={config.cpu_used}
+                    onChange={(v) => { update({ ...config, cpu_used: v }) }}
+                    min={0}
+                    max={16}
+                    step={1}
+                    field
                 />
             </SettingItemFrame>
         </Box>

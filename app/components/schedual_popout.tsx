@@ -31,14 +31,14 @@ import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
-import dayjs, { Dayjs, type ManipulateType } from 'dayjs';
+import dayjs, { type ManipulateType } from 'dayjs';
 
 import { useEffect, useState } from "react";
 
-import { api } from "../hooks/api";
-import { pushError } from "../components/error_popout";
-import useLocalStorage, { getLocalStorage } from "../hooks/storage";
-import type { TaskSchedule } from "../hooks/model";
+import type { TaskSchedule } from "~/models/settings";
+import { api } from "~/hooks/api";
+import { pushError } from "~/components/error_popout";
+import useLocalStorage, { getLocalStorage } from "~/hooks/storage";
 
 
 const defaultQuickSet: [number, ManipulateType][] = [

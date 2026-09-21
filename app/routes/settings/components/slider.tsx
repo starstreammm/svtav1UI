@@ -29,7 +29,7 @@ export function SettingSlider({
     return (
         <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
             <Slider
-                value={value}
+                value={value ?? 0}
                 onChange={(e, newValue) => {
                     onChange(newValue as number);
                 }}

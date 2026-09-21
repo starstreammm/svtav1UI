@@ -54,3 +54,31 @@ export function getLocalStorage(key: string, type: StorageType) {
         new Error("Failed to get localStorage item: " + key);
     }
 }
+
+export function updateLocalStorage<T>(
+    key: string,
+    updater: ((value: T) => T) | T,
+    type: StorageType
+) {
+    if (typeof window === "undefined") return;
+
+    const storage = type === "local" ? localStorage : sessionStorage;
+
+    try {
+        const stored = storage.getItem(key);
+
+        const current = stored
+            ? (JSON.parse(stored) as T)
+            : undefined;
+
+        const updated = typeof updater === "function"
+            ? (updater as (value: T) => T)(current as T)
+            : updater;
+
+        storage.setItem(key, JSON.stringify(updated));
+
+        return updated;
+    } catch {
+        return undefined;
+    }
+}

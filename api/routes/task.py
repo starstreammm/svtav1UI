@@ -1,30 +1,76 @@
 import json
-import os
 
 from fastapi import APIRouter, Query, Request
 from datetime import datetime
 
-from src.models import (
-    ApiRunning,
-    ApiSort,
-    ApiWaiting,
-    ApiFailed,
-    ApiCompleted,
-    TaskInfo,
-    LLMTaskInfo,
-    FileInfo,
-    ApiLLMCompleted,
-    TranscodeInfo,
-)
-from src.database import Database as db
-from src.queue import Queue
-from src.llm import LLM
-
-ENV = os.environ.copy()
-ENV["SVT_LOG"] = "2"
-
+from models import *
+from utils import insert_waiting, fetch_ApiWaiting, fetch_task
+from utils.database import Database as db
+from utils.logger import LoggerBase as lg
+from utils.task_info import TaskInfo, VideoTaskSpwanResponse
+from utils.llm import LLM
 
 task_router = APIRouter(prefix="/task", tags=["task"])
+
+
+# Task spawn
+@task_router.get("/spawn", response_model=VideoTaskSpwanResponse | ImageInfo)
+async def spawn_task(
+    path: Path = Query(
+        ..., description="The path of the video or image file to spawn a task for"
+    )
+):
+    if not path.is_file():
+        raise FileNotFoundError(f"File {path} does not exist.")
+
+    task = await TaskInfo.run(path)
+    return task.response()
+
+
+@task_router.post("/spwan/multi", response_model=VideoTranscodeArgs)
+async def spawn_multi_task(infos: list[VideoInfo]):
+    """
+    Spawn a multi-video transcoding task.
+    """
+    if not infos:
+        raise ValueError("No video info provided.")
+
+    return TaskInfo.fetch_multivideo_args(infos)
+
+
+@task_router.post("/submit", response_model=None)
+async def submit_task(
+    task: VideoTaskInfo | ImageTaskInfo,
+    update: int | None = Query(
+        None, description="Whether to update an existing task if uid is provided"
+    ),
+    priority: bool = Query(
+        False, description="Whether to add the task to the top of the waiting queue"
+    ),
+):
+    """
+    Submit a new transcoding task or update an existing one if uid is provided.
+    Only settings & output can be updated.
+    """
+    if update is not None:
+        db.execute(
+            "UPDATE waiting SET settings=?, output=? WHERE uid=?;",
+            task.settings.model_dump_json(),
+            str(task.output.resolve()),
+            update,
+        )
+    else:
+        lg.info(f"Insert Task: {task.model_dump(mode="json")}")
+        insert_waiting(task, priority=priority)
+
+
+@task_router.post("/submit/llm", response_model=None)
+async def submit_llm_task(task: LLMTaskInfo):
+    """
+    Submit a new LLM task.
+    """
+    lg.info(f"Insert LLM Task: {task.model_dump(mode="json")}")
+    LLM.insert(task)
 
 
 # Running
@@ -33,7 +79,7 @@ async def get_progress(r: Request):
     return r.app.state.queue.progress()
 
 
-@task_router.get("/running/cancel", response_model=None)
+@task_router.post("/running/cancel", response_model=None)
 async def stop_transcoding(r: Request):
     await r.app.state.queue.cancel_running()
 
@@ -54,39 +100,6 @@ async def pause_transcoding(
         r.app.state.queue.pause_running()
 
     return r.app.state.queue.is_running
-
-
-@task_router.post("/submit", response_model=None)
-async def submit_task(
-    task: TaskInfo,
-    update: bool = Query(
-        False, description="Whether to update an existing task if uid is provided"
-    ),
-    priority: bool = Query(
-        False, description="Whether to add the task to the top of the waiting queue"
-    ),
-):
-    """
-    Submit a new transcoding task or update an existing one if uid is provided.
-    Only settings & output can be updated.
-    """
-    if update:
-        db.execute(
-            "UPDATE waiting SET settings=?, output=? WHERE uid=?;",
-            task.settings.model_dump_json(),
-            str(task.output.resolve()),
-            task.uid,
-        )
-    else:
-        await Queue.insert(task, priority=priority)
-
-
-@task_router.post("/submit/llm", response_model=None)
-async def submit_llm_task(task: LLMTaskInfo):
-    """
-    Submit a new LLM task.
-    """
-    LLM.insert(task)
 
 
 # Waiting
@@ -111,7 +124,7 @@ async def get_waiting():
     tasks: list[ApiWaiting] = []
     rows = db.fetchall("SELECT * FROM waiting;")
     for row in rows:
-        tasks.append(db.fetch_ApiWaiting(row))
+        tasks.append(fetch_ApiWaiting(row))
     return sorted(tasks, key=lambda t: t.sort)
 
 
@@ -137,7 +150,7 @@ async def sort_waiting(data: ApiSort):
     )
 
 
-@task_router.get("/waiting/delete", response_model=None)
+@task_router.post("/waiting/delete", response_model=None)
 async def delete_waiting(
     uid: int = Query(..., description="The uid of the waiting task to delete")
 ):
@@ -151,18 +164,31 @@ async def get_failed():
     rows = db.fetchall("SELECT * FROM failed;")
     for row in rows:
         if row["settings"]:
-            tasks.append(
-                ApiFailed(
-                    **(db.fetch_data(row)).model_dump(),
-                    error=json.loads(row["error"]),
-                    time=datetime.fromisoformat(row["time"]),
+            task = fetch_task(row)
+            if isinstance(task, VideoTaskInfo):
+                tasks.append(
+                    VideoFailed(
+                        **task.model_dump(),
+                        uid=row["uid"],
+                        error=json.loads(row["error"]),
+                        time=datetime.fromisoformat(row["time"]),
+                    )
                 )
-            )
+            else:
+                tasks.append(
+                    ImageFailed(
+                        **task.model_dump(),
+                        uid=row["uid"],
+                        error=json.loads(row["error"]),
+                        time=datetime.fromisoformat(row["time"]),
+                    )
+                )
+
         else:
             data = dict(row)
             data["error"] = json.loads(row["error"])
-            data["args"] = TranscodeInfo.model_validate_json(row["args"])
-            tasks.append(ApiFailed.model_validate(data))
+            data["args"] = LLMTranslateArgs.model_validate_json(row["args"])
+            tasks.append(LLMFailed.model_validate(data))
 
     tasks.reverse()
     return tasks
@@ -186,34 +212,59 @@ async def get_completed():
     tasks: list[ApiCompleted] = []
     rows = db.fetchall("SELECT * FROM completed;")
     for row in rows:
-        tasks.append(
-            ApiCompleted(
-                input=[FileInfo.model_validate(f) for f in json.loads(row["input"])],
-                output=FileInfo.model_validate_json(row["output"]),
-                total_consumed=row["total_consumed"],
-                finished_time=datetime.fromisoformat(row["finished_time"]),
+        if row["type"] == "video":
+            tasks.append(
+                VideoCompleted(
+                    input=[
+                        VideoInfo.model_validate(f) for f in json.loads(row["input"])
+                    ],
+                    output=VideoInfo.model_validate_json(row["output"]),
+                    args=VideoTranscodeArgs.model_validate_json(row["args"]),
+                    total_consumed=row["total_consumed"],
+                    finished_time=datetime.fromisoformat(row["finished_time"]),
+                )
             )
-        )
+        elif row["type"] == "image":
+            tasks.append(
+                ImageCompleted(
+                    input=[
+                        ImageInfo.model_validate(f) for f in json.loads(row["input"])
+                    ],
+                    output=[
+                        ImageInfo.model_validate(f) for f in json.loads(row["output"])
+                    ],
+                    args=ImageTranscodeArgs.model_validate_json(row["args"]),
+                    total_consumed=row["total_consumed"],
+                    finished_time=datetime.fromisoformat(row["finished_time"]),
+                )
+            )
+        elif row["type"] == "whisper":
+            tasks.append(
+                WhisperCompleted(
+                    input=[Path(f) for f in json.loads(row["input"])],
+                    output=Path(row["output"]),
+                    args=row["args"],
+                    total_consumed=row["total_consumed"],
+                    finished_time=datetime.fromisoformat(row["finished_time"]),
+                )
+            )
+        else:
+            tasks.append(
+                LLMCompleted(
+                    input=Path(row["input"]),
+                    output=Path(row["output"]),
+                    args=LLMTranslateArgs.model_validate_json(row["args"]),
+                    total_consumed=row["total_consumed"],
+                    finished_time=datetime.fromisoformat(row["finished_time"]),
+                )
+            )
+
     return sorted(tasks, key=lambda t: t.finished_time, reverse=True)
 
 
 @task_router.post("/completed/clear", response_model=None)
 async def clear_completed():
     db.execute("DELETE FROM completed;")
-
-
-@task_router.get("/completed/llm", response_model=list[ApiLLMCompleted])
-async def get_llm_completed():
-    tasks: list[ApiLLMCompleted] = []
-    rows = db.fetchall("SELECT * FROM llm_completed;")
-    for row in rows:
-        tasks.append(ApiLLMCompleted.model_validate(dict(row)))
-    return sorted(tasks, key=lambda t: t.finished_time, reverse=True)
-
-
-@task_router.post("/completed/llm/clear", response_model=None)
-async def clear_llm_completed():
-    db.execute("DELETE FROM llm_completed;")
 
 
 # Transcode cron Status

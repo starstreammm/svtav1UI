@@ -1,6 +1,6 @@
 import { Tooltip, Typography } from "@mui/material";
 
-import type { TaskInfo, FileETAInfo } from "./model";
+import type { ImageTaskInfo, VideoETAInfo, VideoTaskInfo, ImageETAInfo } from "~/models/task";
 import { api } from "./api";
 import { pushError } from "../components/error_popout";
 import { getLocalStorage } from "../hooks/storage";
@@ -30,7 +30,7 @@ function showEta(seconds: number) {
     }
 }
 
-export async function getEta(task: TaskInfo | FileETAInfo) {
+export async function getEta(task: VideoTaskInfo | VideoETAInfo | ImageTaskInfo | ImageETAInfo): Promise<number> {
     const apiUrl = getLocalStorage("apiUrl", "local");
 
     try {
@@ -39,7 +39,7 @@ export async function getEta(task: TaskInfo | FileETAInfo) {
     }
     catch (err) {
         pushError(err, "Fetch ETA");
-        return -1;
+        throw err;
     }
 }
 

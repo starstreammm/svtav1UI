@@ -14,7 +14,6 @@ export function SettingItemFrame({ title, desc = "", children }: { title: string
             width: "100%",
             justifyContent: "space-between",
             alignItems: "center",
-            px: 3,
             pt: 3,
         }}>
             <Tooltip title={desc}>
@@ -34,9 +33,8 @@ export function SettingTitleFrame({ title, reset, children }: { title: string, r
             display: "flex",
             justifyContent: "space-between",
             width: "100%",
-            height: 73,
+            height: 68,
             alignItems: "center",
-            px: 3,
             py: 3,
         }}>
             <Typography variant="h4">

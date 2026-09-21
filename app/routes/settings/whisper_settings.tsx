@@ -2,60 +2,29 @@ import { Box, Divider, Tooltip, Typography, Collapse, Switch } from '@mui/materi
 import AdjustRoundedIcon from '@mui/icons-material/AdjustRounded';
 import { useState, useEffect } from "react";
 
-import { pushError } from "~/components/error_popout";
-import { getLocalStorage } from "~/hooks/storage";
-import { api } from "~/hooks/api";
-import type { TranslatorSettings } from "~/hooks/model";
+import type { TranslatorSettings } from "~/models/settings";
 import { SettingItemFrame, SettingTitleFrame } from "~/routes/settings/components/frame";
 import { SettingSlider } from "~/routes/settings/components/slider";
 import PathSelector from "~/components/pathselector";
+import { fetchTranslatorSettings, updateTranslatorSettings, checkLLM } from "./function";
+import { defaultWhisperConfig } from './default';
+
+
 
 export default function WhisperSettingPage() {
-    const apiUrl = getLocalStorage("apiUrl", "local");
-    const defaultConfig = {
-        asr_model: null,
-        max_length_segment: 38,
-        voice_temperature: 0,
-        no_speech_threshold: 0.5,
-        entropy_thold: 2.3,
-        logprob_thold: -1.0,
-        max_context: -1,
-        suppress_nst: false,
-        no_fallback: false,
-
-        voice_speech_duration: 30,
-        voice_minimum_silence_duration: 300,
-        voice_threshold: 0.63,
-        vad_model: null,
-    };
-
-    const [config, setConfig] = useState<TranslatorSettings>(defaultConfig as TranslatorSettings);
+    const [config, setConfig] = useState<TranslatorSettings>(defaultWhisperConfig as TranslatorSettings);
     const [state, setState] = useState<boolean>(false);
 
-    const check = () => {
-        api.get(`${apiUrl}/settings/translator`).json<boolean>()
-            .then(data => { setState(data); })
-            .catch(error => { pushError(error, "Get translator status"); })
-    }
-
-    const fetch = () => {
-        api.get(`${apiUrl}/settings/t`).json<TranslatorSettings>()
-            .then(data => { setConfig(data); })
-            .catch(error => { pushError(error, "Get translator settings"); })
-    }
-
-    const update = (s: TranslatorSettings) => {
-        api.post(`${apiUrl}/settings/t`, { json: s }).json<TranslatorSettings>()
-            .then(data => { setConfig(data); })
-            .catch(error => { pushError(error, "Update translator settings"); })
-    }
+    const check = () => { checkLLM().then(data => setState(data)); }
+    const fetch = () => { fetchTranslatorSettings().then(data => setConfig(data)); }
+    const update = (s: TranslatorSettings) => { updateTranslatorSettings(s).then(data => setConfig(data)); }
 
     useEffect(() => { fetch(); check(); }, []);
     useEffect(() => { check(); }, [config]);
 
     return (
-        <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
-            <SettingTitleFrame title="Whisper Settings" reset={() => update({ ...config, ...defaultConfig })}>
+        <Box sx={{ display: "flex", flexDirection: "column", width: "100%", px: 3 }}>
+            <SettingTitleFrame title="Whisper Settings" reset={() => update({ ...config, ...defaultWhisperConfig })}>
                 <Tooltip title={"The status of the translator service"} placement="top">
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <AdjustRoundedIcon sx={{ color: state ? "success.main" : "error.main" }} />

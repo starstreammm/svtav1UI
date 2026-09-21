@@ -59,100 +59,100 @@ export default function Connection() {
 
 
     return (
-        <>
-            <Box sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                height: "100vh",
-                width: "100vw",
+        <Box sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            width: "100vw",
+        }}>
+            <Paper elevation={8} sx={{
+                height: "60%",
+                width: "60%",
             }}>
-                <Paper elevation={8} sx={{
-                    height: "60%",
-                    width: "60%",
+                <Box sx={{
+                    display: "flex",
+                    height: "100%",
+                    width: "100%",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    py: 8,
                 }}>
+                    <Typography variant="h3">
+                        Connect to Backend
+                    </Typography>
                     <Box sx={{
                         display: "flex",
-                        height: "100%",
+                        flexDirection: "row",
+                        justifyContent: "center",
                         width: "100%",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        py: 8,
+                        gap: 3,
                     }}>
-                        <Typography variant="h3">
-                            Connect to API
-                        </Typography>
-                        <Box sx={{
-                            display: "flex",
-                            flexDirection: "row",
-                            justifyContent: "center",
-                            width: "100%",
-                            gap: 3,
-                        }}>
-                            <Autocomplete
-                                disablePortal
-                                value={urlProps.protocol}
-                                options={["http", "https"]}
-                                sx={{ width: "12%" }}
-                                renderInput={(params) => <TextField
+                        <Autocomplete
+                            disablePortal
+                            value={urlProps.protocol}
+                            options={["http", "https"]}
+                            sx={{ width: "12%" }}
+                            renderInput={(params) =>
+                                <TextField
                                     {...params}
                                     label="Protocol"
                                     variant="outlined"
                                     onChange={(e) => {
                                         setUrlProps({ ...urlProps, protocol: e.target.value });
                                     }}
-                                />}
-                            />
-                            <Autocomplete
-                                disablePortal
-                                freeSolo
-                                value={urlProps.host}
-                                options={["localhost", ""]}
-                                sx={{ width: "46%" }}
-                                renderInput={(params) => <TextField
-                                    {...params}
-                                    label="Host"
-                                    variant="outlined"
-                                    onChange={(e) => {
-                                        setUrlProps({ ...urlProps, host: e.target.value });
-                                    }}
-                                />}
-                            />
-                            <Autocomplete
-                                disablePortal
-                                freeSolo
-                                value={urlProps.port}
-                                options={["38888"]}
-                                sx={{ width: "12%" }}
-                                renderInput={(params) => <TextField
-                                    {...params}
-                                    label="Port"
-                                    variant="outlined"
-                                    onChange={(e) => {
-                                        setUrlProps({ ...urlProps, port: e.target.value });
-                                    }}
-                                />}
-                            />
-                        </Box>
-                        <Box sx={{
-                            display: "flex",
-                            flexDirection: "row",
-                            justifyContent: "flex-end",
-                            width: "100%",
-                            px: 8,
-                        }}>
-                            <Button variant="contained" onClick={() => {
-                                const url = `${urlProps.protocol}://${urlProps.host}:${urlProps.port}`;
-                                checkConnection(url);
-                            }}>
-                                Confirm
-                            </Button>
-                        </Box>
+                                />
+                            }
+                        />
+                        <Autocomplete
+                            disablePortal
+                            freeSolo
+                            value={urlProps.host}
+                            options={["localhost", ""]}
+                            sx={{ width: "46%" }}
+                            renderInput={(params) => <TextField
+                                {...params}
+                                label="Host"
+                                variant="outlined"
+                                onChange={(e) => {
+                                    setUrlProps({ ...urlProps, host: e.target.value });
+                                }}
+                            />}
+                        />
+                        <Autocomplete
+                            disablePortal
+                            freeSolo
+                            value={urlProps.port}
+                            options={["38888"]}
+                            sx={{ width: "12%" }}
+                            renderInput={(params) => <TextField
+                                {...params}
+                                label="Port"
+                                variant="outlined"
+                                onChange={(e) => {
+                                    setUrlProps({ ...urlProps, port: e.target.value });
+                                }}
+                            />}
+                        />
                     </Box>
-                </Paper >
-            </Box >
-        </>
+                    <Box sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "flex-end",
+                        width: "100%",
+                        px: 8,
+                    }}>
+                        <Button variant="contained" onClick={() => {
+                            const url = `${urlProps.protocol}://${urlProps.host}:${urlProps.port}`;
+                            checkConnection(url);
+                        }}>
+                            Confirm
+                        </Button>
+                    </Box>
+                </Box>
+            </Paper >
+        </Box>
     );
 }

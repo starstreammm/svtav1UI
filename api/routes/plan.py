@@ -1,17 +1,18 @@
 from fastapi import APIRouter
+from pydantic import BaseModel
 from datetime import datetime, timezone
 from bitarray import bitarray
-
 from collections.abc import Callable
-from src.database import Database as db
-from src.models import FileETAInfo, TaskInfo, TaskSchedule, ApiWaiting
-from src.eta import ETA
-from src.logger import Lg
 
-plan_router = APIRouter(prefix="/plan", tags=["plan"])
+from models import *
+from utils import fetch_ApiWaiting
+from utils.database import Database as db
+from utils.logger import LoggerBase as lg
+from utils.eta import ETA
 
 
-class PlanTask(ApiWaiting):
+class PlanTask(BaseModel):
+    task: ApiWaiting
     value: int  # in seconds
 
 
@@ -21,47 +22,46 @@ class PlanUtils:
     @classmethod
     async def get_next(cls, onPause: Callable) -> ApiWaiting | None:
         if cls._sta.on:
-
-            if ETA.model is None:
-                try:
-                    await ETA.train_model()
-                except Exception as e:
-                    Lg.error(f"Error occurred while training ETA model: {e}")
-                    cls._sta.on = False
-                    return await cls._fetch_first()
-
             tasks: list[PlanTask] = []
-            rows = db.fetchall("SELECT * FROM waiting;")
-            if not rows:
-                raise Exception("No task in waiting queue.")
-            
-            for row in rows:
-                task = db.fetch_ApiWaiting(row)
-                if all(f.path.is_file() for f in task.input):
-                    if cls._sta.weight == "size":
-                        tasks.append(
-                            PlanTask(
-                                **task.model_dump(),
-                                value=sum(t.size for t in task.input),
+            try:
+                rows = db.fetchall("SELECT * FROM waiting;")
+                if not rows:
+                    raise Exception("No task in waiting queue.")
+
+                for row in rows:
+                    task = fetch_ApiWaiting(row)
+                    if all(f.path.is_file() for f in task.input):
+                        if cls._sta.weight == "size":
+                            tasks.append(
+                                PlanTask(
+                                    task=task,
+                                    value=sum(t.size for t in task.input),
+                                )
                             )
-                        )
-                    else:
-                        eta = await ETA.get_eta(task.eta)
-                        if eta > 0:
-                            tasks.append(PlanTask(**task.model_dump(), value=eta))
-            if not tasks:
-                raise Exception("No task in waiting queue.")
+                        else:
+                            eta = ETA.get_eta(task.eta)
+                            if eta > 0:
+                                tasks.append(PlanTask(task=task, value=eta))
+                if not tasks:
+                    raise Exception("No task in waiting queue.")
+
+            except Exception as e:
+                lg.error(f"Fetch next scheduled task: {e}")
+                cls._sta.on = False
+                return await cls._fetch_first()
 
             duration = int(
                 (cls._sta.finish_time - datetime.now(timezone.utc)).total_seconds()
             )
             if duration < 0:
-                Lg.info("Scheduled finish time has passed, pausing processing.")
+                lg.info("Scheduled finish time has passed, pausing processing.")
                 cls._sta.on = False
                 onPause()
                 raise Exception("Deadline for scheduling has passed.")
             if duration > 8e4:
-                Lg.debug("Duration is too long, fetching the first task in waiting queue.")
+                lg.debug(
+                    "Duration is too long, fetching the first task in waiting queue."
+                )
                 return await cls._fetch_first()
 
             dp = [0] * (duration + 1)
@@ -91,18 +91,18 @@ class PlanUtils:
                         if rtn is None or t.value < rtn.value:
                             rtn = t
                 if rtn:
-                    return rtn
+                    return rtn.task
                 else:
                     cls._sta.on = False
                     onPause()
                     raise Exception("No task can be scheduled within the time.")
             else:
                 if cls._sta.sort == "longest":
-                    return max(chosen, key=lambda x: x.value)
+                    return max(chosen, key=lambda x: x.value).task
                 elif cls._sta.sort == "shortest":
-                    return min(chosen, key=lambda x: x.value)
+                    return min(chosen, key=lambda x: x.value).task
                 else:
-                    return min(chosen, key=lambda x: x.sort)
+                    return min(chosen, key=lambda x: x.task.sort).task
 
         else:
             return await cls._fetch_first()
@@ -123,7 +123,7 @@ class PlanUtils:
             if not row:
                 return None
 
-            task = db.fetch_ApiWaiting(row)
+            task = fetch_ApiWaiting(row)
 
             if (not all(f.path.is_file() for f in task.input)) or (
                 not task.output.parent.is_dir()
@@ -132,17 +132,22 @@ class PlanUtils:
                 continue
 
             db.execute("DELETE FROM waiting WHERE uid=?;", task.uid)
-            Lg.debug(f"Task fetched from waiting queue: {task.model_dump()}.")
+            lg.debug(f"Task fetched from waiting queue: {task.model_dump()}.")
             return task
 
 
+plan_router = APIRouter(prefix="/plan", tags=["plan"])
+
+
 @plan_router.post("/eta")
-async def get_eta(data: TaskInfo | FileETAInfo) -> int:
-    if isinstance(data, TaskInfo):
-        eta_info = await ETA.get_eta_info(file_info=data)
+async def get_eta(
+    data: VideoETAInfo | ImageETAInfo | VideoTaskInfo | ImageTaskInfo,
+) -> int:
+    if isinstance(data, VideoTaskInfo | ImageTaskInfo):
+        eta_info = ETA.get_info(data)
     else:
         eta_info = data
-    return await ETA.get_eta(eta_info)
+    return ETA.get_eta(eta_info)
 
 
 @plan_router.get("/status")
@@ -155,4 +160,4 @@ async def update_status(data: TaskSchedule) -> None:
     if (data.finish_time < datetime.now(timezone.utc)) and data.on:
         raise ValueError("Finish time cannot be in the past when scheduling is on.")
     PlanUtils._sta = data
-    Lg.info(f"Plan status updated: {data.model_dump_json()}")
+    lg.info(f"Plan status updated: {data.model_dump_json()}")

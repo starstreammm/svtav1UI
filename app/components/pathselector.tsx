@@ -15,16 +15,18 @@ import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 
 import { useEffect, useMemo, useState } from "react";
 
+import type { ApiPath } from "~/models/settings";
 import { api } from "~/hooks/api";
 import { getLocalStorage } from "~/hooks/storage";
 import { pushMsg, pushError } from "~/components/error_popout";
-import type { ApiPath } from "~/hooks/model";
+
+const apiUrl = getLocalStorage("apiUrl", "local");
 
 
 export default function PathSelector({
     label,
     onClose,
-    onEnter = () => { },
+    onEnter,
     type = "any",
     filter = "video",
     value,
@@ -34,11 +36,10 @@ export default function PathSelector({
     onClose: (path: string) => void;
     onEnter?: (path: string) => void;
     type?: "file" | "dir" | "any";
-    filter?: "video" | "model" | "subtitle";
+    filter?: "video" | "image" | "subtitle" | "model";
     value?: string | null;
     addDir?: boolean
 }) {
-    const apiUrl = getLocalStorage("apiUrl", "local");
     const [path, setPath] = useState("/");
     const [pathList, setPathList] = useState<ApiPath>({ dir: [], file: [] });
     const [newFolder, setNewFolder] = useState<string | null>(null);
@@ -57,7 +58,7 @@ export default function PathSelector({
         path = path.replaceAll("//", "/");
         if (!path.startsWith("/")) path = "/" + path;
         try {
-            const isFile = await check_file(path);
+            const isFile = await checkFile(path);
             if (isFile) {
                 return path;
             }
@@ -70,9 +71,8 @@ export default function PathSelector({
     };
 
     const fetch = (path: string) => {
-        api.get(`${apiUrl}/path/ls`, { searchParams: { path_str: path, filter } }).json<ApiPath>()
-            .then(data => { setPathList(data); })
-            .catch(error => { pushError(error, "Fetch file list"); })
+        fetchPathList(path, filter)
+            .then(data => setPathList(data))
     };
 
     const fetch_home = async () => {
@@ -86,18 +86,8 @@ export default function PathSelector({
         catch (error) { pushError(error, "Fetch home path"); return "/"; }
     };
 
-    const check_file = async (path: string) => {
-        try {
-            return await api.get(`${apiUrl}/path/is_file?path_str=${path}`).json<boolean>();
-        }
-        catch (error) {
-            pushError(error, "Check file type");
-            throw error;
-        }
-    }
-
     const makeDir = () => {
-        api.get(`${apiUrl}/path/mkdir?path_str=${path}${newFolder}`)
+        api.get(`${apiUrl}/path/mkdir`, { searchParams: { path: path + newFolder } })
             .then(() => {
                 setPath(prev => prev + newFolder + "/");
                 setNewFolder(null);
@@ -110,24 +100,29 @@ export default function PathSelector({
     const close_check = async (is_enter: boolean) => {
         try {
             // Check if the path is valid
-            const type_check = await check_file(path);
+            const type_check = await checkFile(path);
 
             if (type === "any") {
                 let res = path;
                 if (!type_check)
                     res = path.endsWith("/") ? path : path + "/";
-                is_enter ? onEnter(res) : onClose(res);
+                handleClose(res, is_enter);
             }
             else if (type === "file") {
-                if (type_check) { is_enter ? onEnter(path) : onClose(path); }
+                if (type_check) { handleClose(path, is_enter); }
                 else { pushMsg("The path you entered is a directory. Please select a file", "error"); }
             }
             else if (type === "dir") {
-                if (!type_check) { is_enter ? onEnter(path) : onClose(path); }
+                if (!type_check) { handleClose(path, is_enter); }
                 else { pushMsg("The path you entered is a file. Please select a directory", "error"); }
             }
         }
         catch (error) { return; }
+    }
+
+    const handleClose = (res: string, is_enter: boolean) => {
+        if (is_enter && onEnter) { onEnter(res); }
+        else { onClose(res); }
     }
 
     const fetch_options = useMemo(() => {
@@ -265,4 +260,27 @@ export default function PathSelector({
             </Box>
         </>
     );
+}
+
+export async function fetchPathList(path: string, filter: "video" | "image" | "subtitle" | "model") {
+    try {
+        const res = await api.get(`${apiUrl}/path/ls`, { searchParams: { path, filter } }).json<ApiPath>();
+        return res;
+    }
+    catch (error) {
+        pushError(error, "Fetch file list");
+        throw error;
+    }
+}
+
+
+export async function checkFile(path: string) {
+    try {
+        const res = await api.get(`${apiUrl}/path/is_file`, { searchParams: { path } }).json<boolean>();
+        return res;
+    }
+    catch (error) {
+        pushError(error, "Check is file");
+        throw error;
+    }
 }

@@ -21,9 +21,10 @@ import { useNavigate, Outlet, useLocation } from "react-router";
 
 import { useState } from "react";
 
-import AppBarComponent from "../components/appbar";
-import InsertTaskDialog from "../components/insert";
-import InsertLLMTaskDialog from "../components/insert/llm_index";
+import AppBarComponent from "~/components/appbar";
+import VideoInsert from "~/insert/video";
+import ImageInsert from "~/insert/image";
+import LLMInsert from "~/insert/llm";
 
 const drawerWidth = 218;
 
@@ -31,28 +32,26 @@ export default function Home() {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const [insertTaskOpen, setInsertTaskOpen] = useState<null | boolean>(null);
+    const [insertOpen, setInsertOpen] = useState<number>(-1);
 
     return (
         <>
-            {insertTaskOpen === true &&
-                <InsertTaskDialog
-                    onClose={() => {
-                        setInsertTaskOpen(null);
-                    }}
-                    onCancel={() => {
-                        setInsertTaskOpen(null);
-                    }}
+            {insertOpen === 0 &&
+                <VideoInsert
+                    onClose={() => setInsertOpen(-1)}
+                    onCancel={() => setInsertOpen(-1)}
                 />
             }
-            {insertTaskOpen === false &&
-                <InsertLLMTaskDialog
-                    onClose={() => {
-                        setInsertTaskOpen(null);
-                    }}
-                    onCancel={() => {
-                        setInsertTaskOpen(null);
-                    }}
+            {insertOpen === 1 &&
+                <ImageInsert
+                    onClose={() => setInsertOpen(-1)}
+                    onCancel={() => setInsertOpen(-1)}
+                />
+            }
+            {insertOpen === 2 &&
+                <LLMInsert
+                    onClose={() => setInsertOpen(-1)}
+                    onCancel={() => setInsertOpen(-1)}
                 />
             }
             <AppBarComponent />
@@ -92,7 +91,6 @@ export default function Home() {
                             ['Waiting', "/waiting", <PauseCircleOutlineRoundedIcon />],
                             ['LLM Waiting', "/llm-waiting", <PauseCircleOutlineRoundedIcon />],
                             ['Completed', "/completed", <CheckCircleRoundedIcon />],
-                            ['LLM Completed', "/llm-completed", <CheckCircleRoundedIcon />],
                             ['Failed', "/failed", <CancelOutlinedIcon />],
                         ],
                         "Settings": [
@@ -132,26 +130,16 @@ export default function Home() {
                             </ListSubheader>
                         }
                     >
-                        <ListItem disablePadding>
-                            <ListItemButton
-                                onClick={() => setInsertTaskOpen(true)}
-                            >
-                                <ListItemIcon>
-                                    <AddCircleRoundedIcon />
-                                </ListItemIcon>
-                                <ListItemText primary="Insert Task" />
-                            </ListItemButton>
-                        </ListItem>
-                        <ListItem disablePadding>
-                            <ListItemButton
-                                onClick={() => setInsertTaskOpen(false)}
-                            >
-                                <ListItemIcon>
-                                    <AddBoxRoundedIcon />
-                                </ListItemIcon>
-                                <ListItemText primary="Insert LLM Task" />
-                            </ListItemButton>
-                        </ListItem>
+                        {["Video", "Image", "LLM"].map((text, index) =>
+                            <ListItem disablePadding key={text}>
+                                <ListItemButton onClick={() => setInsertOpen(index)}>
+                                    <ListItemIcon>
+                                        <AddCircleRoundedIcon />
+                                    </ListItemIcon>
+                                    <ListItemText primary={`Insert ${text} Task`} />
+                                </ListItemButton>
+                            </ListItem>
+                        )}
                     </List>
                 </Box>
                 <Divider orientation="vertical" flexItem />

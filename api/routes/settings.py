@@ -2,15 +2,15 @@ import shutil
 import json
 from fastapi import APIRouter
 
-from src.models import GeneralSettings, VERSION, TranslatorSettings
-from src.logger import Lg
-from src.database import Database
+from models import TranscodeSettings, VERSION, TranslatorSettings
+from utils.logger import LoggerBase as lg
+from utils.database import Database
 
 
 class SettingsManager:
 
-    _general: GeneralSettings = GeneralSettings()
-    _translator: TranslatorSettings = TranslatorSettings()
+    _general = TranscodeSettings()
+    _translator = TranslatorSettings()
 
     @classmethod
     async def init(cls) -> None:
@@ -22,11 +22,11 @@ class SettingsManager:
                 except Exception:
                     res.pop(key, None)
 
-            cls._general = GeneralSettings.model_validate(res)
+            cls._general = TranscodeSettings.model_validate(res)
             cls._translator = TranslatorSettings.model_validate(res)
 
-        Lg.debug(f"General settings: {cls._general.model_dump()}")
-        Lg.debug(f"Translator settings: {cls._translator.model_dump()}")
+        lg.debug(f"Transcode settings: {cls._general.model_dump()}")
+        lg.debug(f"Translator settings: {cls._translator.model_dump()}")
 
     @classmethod
     async def translator_check(cls) -> bool:
@@ -59,25 +59,26 @@ class SettingsManager:
 settings_router = APIRouter(prefix="/settings", tags=["Settings"])
 
 
-@settings_router.get("/g", response_model=GeneralSettings)
+@settings_router.get("/transcode", response_model=TranscodeSettings)
 async def get_settings():
     """
-    Get the current settings.
+    Get the current transcode settings.
     """
+
     return SettingsManager._general
 
 
-@settings_router.post("/g", response_model=GeneralSettings)
-async def update_settings(settings: GeneralSettings):
+@settings_router.post("/transcode", response_model=TranscodeSettings)
+async def update_settings(settings: TranscodeSettings):
     """
-    Update the settings.
+    Update the transcode settings.
     """
     SettingsManager._general = settings
-    Lg.debug(f"Updated general settings: {SettingsManager._general.model_dump()}")
+    lg.debug(f"Updated general settings: {SettingsManager._general.model_dump()}")
     return SettingsManager._general
 
 
-@settings_router.get("/t", response_model=TranslatorSettings)
+@settings_router.get("/translator", response_model=TranslatorSettings)
 async def get_translator_settings():
     """
     Get the current translator settings.
@@ -85,13 +86,13 @@ async def get_translator_settings():
     return SettingsManager._translator
 
 
-@settings_router.post("/t", response_model=TranslatorSettings)
+@settings_router.post("/translator", response_model=TranslatorSettings)
 async def update_translator_settings(patch: TranslatorSettings):
     """
     Update the translator settings.
     """
     SettingsManager._translator = patch
-    Lg.debug(f"Updated translator settings: {SettingsManager._translator.model_dump()}")
+    lg.debug(f"Updated translator settings: {SettingsManager._translator.model_dump()}")
     return SettingsManager._translator
 
 
@@ -103,7 +104,7 @@ async def get_version():
     return VERSION
 
 
-@settings_router.get("/translator", response_model=bool)
+@settings_router.get("/check/translator", response_model=bool)
 async def get_translator():
     """
     Check if the translator is available.
