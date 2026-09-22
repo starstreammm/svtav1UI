@@ -41,7 +41,11 @@ export function VideoWaitingDetails({ task, extend }: { task: VideoWaiting; exte
         <GridContainer extend={extend}>
             <GridColumn title="Input Details" size={4}>
                 {task.input.map((video, index) => (
-                    <VideoInfoComponent key={index} video={video} index={index} />
+                    <VideoInfoComponent
+                        key={index}
+                        video={video}
+                        index={task.input.length > 1 ? index : undefined}
+                    />
                 ))}
             </GridColumn>
             <GridColumn title="Output Set" size={4}>

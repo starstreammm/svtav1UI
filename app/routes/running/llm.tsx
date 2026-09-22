@@ -1,41 +1,32 @@
-import { Grid, Typography, Divider } from "@mui/material";
+import { Divider } from "@mui/material";
 
 import type { LLMRunning } from "~/models/running";
-import { NobarOverflow } from "~/components/frame";
-import { LogsProgress } from "./component";
+import { NobarOverflow, ColumnWidth } from "~/components/frame";
+import { TaskInfoItemBase } from "~/components/task_info";
+import { LogsProgress, PanelTitle } from "./component";
 
 
 
 export default function LLMRunningProgress({ info }: { info: LLMRunning }) {
     return (
-        <Grid container spacing={1}>
-            <Grid size={3}>
-                <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
-                    Progress Info
-                </Typography>
+        <>
+            <ColumnWidth>
+                <PanelTitle title="Task Details" />
                 <NobarOverflow gap={1}>
-                    {([
-                        ["Input", info.input],
-                        ["Output", info.output],
-                        ["Original Language", info.args.original],
-                        ["Destination Language", info.args.destination],
+                    <TaskInfoItemBase size="body1" content={[
                         ["Start Time", new Date(info.start_time).toLocaleString()],
                         ["Consumed Time", info.consumed_time],
-                    ] as [string, string | number][]).map(([key, value]) => (
-                        <Typography key={key} sx={{
-                            overflowWrap: "anywhere",
-                            wordBreak: "break-all",
-                            pl: 3,
-                        }}>
-                            <b>{key}:</b> {value}
-                        </Typography>
-                    ))}
+                        ["Input Path", info.input],
+                        ["Output Path", info.output],
+                        ["Original Language", info.args.original],
+                        ["Destination Language", info.args.destination],
+                    ]} />
                 </NobarOverflow>
-            </Grid>
+            </ColumnWidth>
             <Divider orientation="vertical" />
-            <Grid size={9}>
-                <LogsProgress title="LLM Logs" newLogs={info.log} />
-            </Grid>
-        </Grid>
+            <ColumnWidth width="73%">
+                <LogsProgress title="LLM" newLogs={info.log} />
+            </ColumnWidth>
+        </>
     );
 }

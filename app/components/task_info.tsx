@@ -6,18 +6,24 @@ import type { TranscodeSettings } from "~/models/settings";
 
 
 
-export function TaskInfoItemBase({ size = "body2", content }: {
-    size?: TypographyVariant;
+export function TaskInfoItemBase({ content, size = "body2", pl }: {
     content: [string, string | number][];
+    size?: TypographyVariant;
+    pl?: number;
 }) {
     return (
         <>
             {content.map(([key, value]) =>
-                <Typography key={key} variant={size} sx={{
-                    overflowWrap: "anywhere",
-                    wordBreak: "break-all",
-                    textIndent: "3em hanging",
-                }}>
+                <Typography
+                    key={key}
+                    variant={size}
+                    sx={{
+                        overflowWrap: "anywhere",
+                        wordBreak: "break-all",
+                        textIndent: "3em hanging",
+                        pl: pl,
+                    }}
+                >
                     <Box component="b" sx={{ color: "secondary.dark" }}>{key}:</Box> {value}
                 </Typography>
             )}

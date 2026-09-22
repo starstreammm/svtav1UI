@@ -33,6 +33,7 @@ import type { VideoResponse, VideoInsertConfig } from "../models";
 import { Rotate, Language } from "~/models/const";
 import { EtaText, getEta } from "~/hooks/eta";
 import useLocalStorage from "~/hooks/storage";
+import { TaskInfoItemBase } from "~/components/task_info";
 import PathSelector from "~/components/pathselector";
 import { RotateSelector, OrgLangSelector, DestLangSelector } from "./components";
 import { NobarOverflow } from "~/components/frame";
@@ -89,6 +90,7 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
                             settings={settings}
                             output={output}
                             setTotalEta={setTotalEta}
+                            onlySubtitle={config.only_subtitle}
                             ref={outputRefs.current[file.info.path] ??= createRef<() => string>() as RefObject<() => string>}
                         />
                     )
@@ -132,6 +134,7 @@ export function MultiOutput({ files, args, setArgs, settings, ref }: {
                 setArgs={setArgs}
                 settings={settings}
                 output={output}
+                onlySubtitle={false}
                 setTotalEta={() => { }}
                 ref={outputRef}
             />
@@ -164,13 +167,14 @@ function OutputTitle({ path, setPath, totalEta }: {
     );
 }
 
-function OutputItem({ index, file, setArgs, settings, output, setTotalEta, ref }: {
+function OutputItem({ index, file, setArgs, settings, output, setTotalEta, onlySubtitle, ref }: {
     index: number;
     file: VideoResponse;
     setArgs: Dispatch<SetStateAction<VideoTranscodeArgs>>;
     settings: TranscodeSettings;
     output: string;
     setTotalEta: Dispatch<SetStateAction<number>>;
+    onlySubtitle: boolean;
     ref: ForwardedRef<() => string>;
 }) {
     const [rename, setRename] = useState(false);
@@ -236,40 +240,31 @@ function OutputItem({ index, file, setArgs, settings, output, setTotalEta, ref }
                     />
                 }
             </Box>
-            {[
-                ["Output Path", `${output}${output.endsWith("/") ? "" : "/"}${name}.mp4`],
-                ["Video Bitrate", `${(Math.min(file.args.video_br / 1000 / 1000, settings.max_bitrate_mb)).toFixed(2)} Mbps`],
-                ["Audio Bitrate", `${(file.args.audio_br / 1000).toFixed(2)} kbps`],
-                ["Pixel Format", file.args.pix_fmt],
-                ["SAR Fix", file.args.sar_fix === "" ? "N/A" : file.args.sar_fix],
-                ["Zscale", file.args.zscale],
-                ["Rotate", typeof file.args.rotate === "number" ? Rotate[file.args.rotate] : "N/A"],
+            {!onlySubtitle &&
+                <TaskInfoItemBase content={[
+                    ["Output Path", `${output}${output.endsWith("/") ? "" : "/"}${name}.mp4`],
+                    ["Video Bitrate", `${(Math.min(file.args.video_br / 1000 / 1000, settings.max_bitrate_mb)).toFixed(2)} Mbps`],
+                    ["Audio Bitrate", `${(file.args.audio_br / 1000).toFixed(2)} kbps`],
+                    ["Pixel Format", file.args.pix_fmt],
+                    ["SAR Fix", file.args.sar_fix === "" ? "N/A" : file.args.sar_fix],
+                    ["Zscale", file.args.zscale],
+                    ["Rotate", typeof file.args.rotate === "number" ? Rotate[file.args.rotate] : "N/A"],
+                ]} />
+            }
+            <TaskInfoItemBase content={[
                 ["Subtitle", file.args.subtitle ? Language[file.args.subtitle] : "None"],
-            ].map(([key, value]) => (
-                <Typography key={key} variant="body2" sx={{
-                    overflowWrap: "anywhere",
-                    wordBreak: "break-all",
-                    textIndent: "3em hanging",
-                }}>
-                    <Box component="b" sx={{ color: "secondary.main" }}>{key}:</Box> {value}
-                </Typography>
-            ))}
+            ]} />
             {file.args.subtitle &&
-                <>
-                    {[
-                        ["Subtitle Path", `${output}${output.endsWith("/") ? "" : "/"}${name}.${file.args.subtitle}.srt`],
-                        ["Translate", file.args.tran ? Language[file.args.tran] : "None"],
-                    ].map(([key, value]) => (
-                        <Typography key={key} variant="body2" sx={{ pl: 2 }}>
-                            <b>{key}:</b> {value}
-                        </Typography>
-                    ))}
-                </>
+                <TaskInfoItemBase content={[
+                    ["Subtitle Path", `${output}${output.endsWith("/") ? "" : "/"}${name}.${file.args.subtitle}.srt`],
+                    ["Translate", file.args.tran ? Language[file.args.tran] : "None"],
+                ]} />
             }
             {file.args.tran &&
-                <Typography variant="body2" sx={{ pl: 2 }}>
-                    <b>Translate Immediately:</b> {file.args.tran_inmediate ? "On" : "Off"}
-                </Typography>
+                <TaskInfoItemBase content={[
+                    ["Translate Path", `${output}${output.endsWith("/") ? "" : "/"}${name}.${file.args.tran}.srt`],
+                    ["Translate Immediately", file.args.tran_inmediate ? "On" : "Off"],
+                ]} />
             }
         </Box >
     );

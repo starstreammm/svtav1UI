@@ -58,7 +58,7 @@ export const defaultTranConfig = {
     keyint: "6s",
     lookahead: 120,
     scd: true,
-    crf: 8,
+    crf: 6,
     cpu_used: 3,
 };
 

@@ -3,50 +3,47 @@
   <br />
   <br />
   <img alt="Node Current" src="https://img.shields.io/node/v/%40rolldown%2Fplugin-babel">
-  <img alt="Python Version" src="https://img.shields.io/badge/python-3.10%2B-blue">
-  <img alt="GitHub License" src="https://img.shields.io/github/license/Xu-Xihe/svtav1UI">
-  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/Xu-Xihe/svtav1UI">
-  <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/Xu-Xihe/svtav1UI/release.yml?label=Release">
-	<img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/Xu-Xihe/svtav1UI/docker.yml?label=Docker">
+  <img alt="Python Version" src="https://img.shields.io/badge/python-3.12%2B-blue">
+  <img alt="GitHub License" src="https://img.shields.io/github/license/starstreammm/svtav1UI">
+  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/starstreammm/svtav1UI">
+  <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/starstreammm/svtav1UI/publish.yml?label=Release">
   <br />
-  <img alt="GitHub forks" src="https://img.shields.io/github/forks/Xu-Xihe/svtav1UI">
-	<img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/Xu-Xihe/svtav1UI">
-	<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/Xu-Xihe/svtav1UI">
+  <img alt="GitHub forks" src="https://img.shields.io/github/forks/starstreammm/svtav1UI">
+	<img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/starstreammm/svtav1UI">
+	<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/starstreammm/svtav1UI">
  </div>
 
-## New 3.1 Version Released!!!
+## New V4 Released!!!
 
 New features:
 
-- Automatic Speech Recognition (ASR) by whisper.cpp and translation by llm (support openai API, mlx and llama).
-
-- More video normalization parameters, including pixel format and color space.
-
-- Rebuild the task queue and the insert dialog.
-
-- Remove the support for vca, as it's unsuitable to our aim for fast and acceptable precision eta.
-
-- Task Schedule is available now!
-
+- Add support for images! Now the program can transcode images to AVIF just like videos before.
+- Fix various display issues & providing more details.
+- Rebuild the queue part for new image function.
 
 ## Features
 
 - With WebUI, convenient for checking progress and operation.
 - Run `ffmpeg` locally, without performance loss.
+- Support full video normalization parameters, including pixel format and color space.
 - Task queue, with automatic hang-up interrupt.
+- With task schedule, easily plan your transcoding time.
 - Bulk import & Global settings.
 - GBM task prediction, more precise and lightly.
-- Automatic Speech Recognition & Translation.
+- AAutomatic Speech Recognition (ASR) by whisper.cpp and translation by llm (support openai API, mlx and llama).utomatic Speech Recognition & Translation.
 
-### Update V2 to V3
+### Upgrade to V4
 
-If you are updating v2 to v3, here are some projects you need to prepare.
+In the all-new version 4, the database structure and program data path has been changed.
 
-First, make sure that **no tasks** are in the **waiting list**, as it will be rebuilt during the database updating.
+Thus, if you want to upgrade to v4, the recommanded steps are totally uninstall the V3 and do a completely reinstall.
 
-Download the [latest release package](https://github.com/Xu-Xihe/svtav1UI/releases/latest/download/release.tar.gz) and unpack it.
+If you truly want to save the history (which used for ETA Model), you can do an manully update.
 
-Copy the `api/cache/config.db` file to the corresponding path in the new version, then start `main.py`.
+1. Find the `config.db`.
+2. Delete all the tables except `history`.
+3. Rename the `history` table to `video_history`.
+4. Move the `config.db` to `data/`.
 
 ## Installations
 
@@ -56,12 +53,11 @@ Follow the instruction from [ffmpeg.org](https://ffmpeg.org).
 
 ### 2. Install Api
 
-- Download the [latest release](https://github.com/Xu-Xihe/svtav1UI/releases/latest/download/release.tar.gz).
-
+- Download the [latest release](https://github.com/starstreammm/svtav1UI/releases/latest/download/backend.tar.gz).
 - Unzip the file:
 
 ```bash
-tar -xzf release.tar.gz
+tar -xzf backend.tar.gz
 ```
 
 - Install pip packages:
@@ -73,7 +69,7 @@ pip install -r requirements.txt
 - Run Api:
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 38888
+uvicorn main:app --host 0.0.0.0 --port 38889
 ```
 
 ### 3. Install Docker
@@ -87,7 +83,7 @@ docker run -d -p 8889:80 starstreammm/stvav1ui:latest
 Github
 
 ```bash
-docker run -d -p 8889:80 ghcr.io/xu-xihe/svtav1ui:latest
+docker run -d -p 8889:80 ghcr.io/starstreammm/svtav1ui:latest
 ```
 
 ### 4. Install libomp

@@ -2,7 +2,12 @@ import { Divider } from "@mui/material";
 
 import type { VideoRunning } from "~/models/running";
 import { NobarOverflow, ColumnWidth } from "~/components/frame";
-import { VideoInfoComponent, VideoArgsComponent, TaskInfoItemBase, SettingsInfoComponent } from "~/components/task_info";
+import {
+    VideoInfoComponent,
+    VideoArgsComponent,
+    TaskInfoItemBase,
+    SettingsInfoComponent,
+} from "~/components/task_info";
 import { PanelTitle } from "./component";
 
 
@@ -21,6 +26,7 @@ function Progress({ info }: { info: VideoRunning }) {
                     ["Bitrate", info.bitrate],
                     ["Size", info.size],
                     ["Completed Duration", info.completed_duration],
+                    ["Total Duration", info.total_duration],
                     ["Dup Frames", info.dup_frames],
                     ["Drop Frames", info.drop_frames],
                     ["Speed", `${info.speed}x`],
@@ -50,6 +56,10 @@ export default function VideoRunningProgress({ info }: { info: VideoRunning }) {
             <ColumnWidth width={"33%"}>
                 <PanelTitle title="Output Arguments" />
                 <NobarOverflow gap={1}>
+                    <TaskInfoItemBase size="body1" content={[
+                        ["Output Path", info.output],
+                        ["Preset", info.settings.preset],
+                    ]} />
                     <VideoArgsComponent size="body1" task={info.args} />
                     <SettingsInfoComponent size="body1" settings={info.settings} />
                 </NobarOverflow>

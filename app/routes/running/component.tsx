@@ -66,9 +66,7 @@ export function LogsProgress({ title, newLogs }: { title: string; newLogs: strin
 
     return (
         <>
-            <Typography variant="h5" sx={{ mb: 1 }}>
-                {title} Progress Info
-            </Typography>
+            <PanelTitle title={`${title} Progress Logs`} />
             <TextField
                 multiline
                 value={logs.join("\n")}
@@ -264,9 +262,14 @@ function CancelPopout({ onClose }: { onClose: () => void }) {
     );
 }
 
-export function PanelTitle({ title }: { title: string }) {
+export function PanelTitle({ title, mt }: { title: string; mt?: number }) {
     return (
-        <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold", color: "text.secondary" }}>
+        <Typography variant="h6" sx={{
+            mb: 1,
+            mt,
+            fontWeight: "bold",
+            color: "text.secondary",
+        }}>
             {title}
         </Typography>
     );

@@ -23,7 +23,7 @@ class TranscodeSettings(BaseModel):
     scd: bool = True
 
     # Image Transcoder Settings
-    crf: int = Field(default=8, ge=-1, le=36)
+    crf: int = Field(default=6, ge=-1, le=36)
     cpu_used: int = Field(default=3, ge=0, le=16)
 
 

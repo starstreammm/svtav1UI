@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from models import (
     LLMTranslateArgs,
     LLMRunning,
+    LLMWaiting,
     LLMSettings,
     LLMTaskInfo,
     VideoTaskInfo,
@@ -108,7 +109,7 @@ class LLM:
 
     def __init__(self, config: LLMSettings):
         self.config = config
-        self.progress: LLMRunning
+        self.progress: LLMRunning | None = None
         self.task: LLMTaskInfo
         self.timer = Timer()
         self.gen: Callable[[str], str]
@@ -129,13 +130,13 @@ class LLM:
     async def run(self, task: LLMTaskInfo) -> None:
         try:
             # validate task
-            if not self.task.input.is_file():
-                raise FileNotFoundError(f"Input file not found: {self.task.input}")
+            if not task.input.is_file():
+                raise FileNotFoundError(f"Input file not found: {task.input}")
 
             self.timer = Timer()
-            self.task = LLMTaskInfo.model_validate(task.model_dump())
-            self.progress = LLMRunning.model_validate(task)
-            self.output = open(self.task.output, "w", encoding="utf-8")
+            self.task = task
+            self.progress = LLMRunning.model_validate(task.model_dump())
+            self.output = open(task.output, "w", encoding="utf-8")
 
             # run translation
             with open(self.task.input, "r", encoding="utf-8") as in_f:
@@ -182,13 +183,16 @@ class LLM:
             self.output.close()
             self._onSuccess()
 
-    def get_progress(self) -> LLMRunning:
+    def get_progress(self) -> LLMRunning | None:
+        if self.progress is None:
+            return None
         self.progress.consumed_time = self.timer.total()
         res = self.progress.model_copy(deep=True)
         self.progress.log.clear()
         return res
 
     def _tran(self, content: list[tuple[str, str]], max_index: int) -> None:
+        assert self.progress is not None
         length = len(content)
 
         # Block translation
@@ -245,6 +249,7 @@ class LLM:
         return trans
 
     def _onSuccess(self) -> None:
+        assert self.progress is not None
         now = datetime.now(timezone.utc)
         db.execute(
             """
@@ -260,6 +265,7 @@ class LLM:
         )
 
     def _onFailed(self) -> None:
+        assert self.progress is not None
         db.execute(
             """
             INSERT INTO failed 
@@ -287,7 +293,7 @@ class LLM:
         )
 
     @staticmethod
-    def tran_from_taskinfo(task: VideoTaskInfo) -> LLMTaskInfo:
+    def tran_from_videotask(task: VideoTaskInfo) -> LLMTaskInfo:
         if task.args.subtitle is None or task.args.tran is None:
             raise ValueError("Subtitle or translation language is not set.")
         return LLMTaskInfo(
@@ -297,4 +303,13 @@ class LLM:
                 original=task.args.subtitle,
                 destination=task.args.tran,
             ),
+        )
+
+    @staticmethod
+    def fetch_waiting(row) -> LLMWaiting:
+        return LLMWaiting(
+            uid=row["uid"],
+            input=row["input"],
+            output=row["output"],
+            args=LLMTranslateArgs.model_validate_json(row["args"]),
         )

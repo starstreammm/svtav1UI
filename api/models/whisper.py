@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Literal
 from pathlib import Path
 from datetime import datetime
@@ -31,12 +31,11 @@ class WhisperTaskInfo(BaseModel):
     subtitle: Language
     settings: WhisperSettings
 
-    @field_validator("output")
-    def validate_output(cls, v: Path) -> Path:
-        if not v.suffix.lower() == ".srt":
-            return v.with_suffix(f".{cls.subtitle}.srt")
-        else:
-            return v
+    @model_validator(mode="after")
+    def validate_output(self):
+        if not self.output.suffix.lower() == ".srt":
+            self.output = self.output.with_suffix(f".{self.subtitle}.srt")
+        return self
 
 
 class WhisperApiBase(BaseModel):

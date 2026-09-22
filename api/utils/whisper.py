@@ -20,7 +20,7 @@ class Whisper:
 
         self.task = task
         self.timer = Timer()
-        self.progress = WhisperRunning.model_validate(task)
+        self.progress = WhisperRunning.model_validate(task.model_dump())
 
         # run command
         self.proc: asyncio.subprocess.Process

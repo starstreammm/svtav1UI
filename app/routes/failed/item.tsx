@@ -7,6 +7,8 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 
 import { useState } from "react";
 import type { ApiFailed, ImageFailed, LLMFailed, VideoFailed } from "~/models/failed";
+import { PanelTitle } from "~/routes/running/component";
+import { TaskInfoItemBase } from "~/components/task_info";
 import VideoInsert from "~/insert/video";
 import ImageInsert from "~/insert/image";
 import LLMInsert from "~/insert/llm";
@@ -64,18 +66,14 @@ function FailedItemBase({ task, input, InsertDialog, onDelete }: {
                     {extend ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
                 </TableCell>
             </TableRow>
-            <TableRow>
-                <TableCell colSpan={4}>
+            <TableRow sx={{ p: 0, m: 0 }}>
+                <TableCell colSpan={4} sx={{ p: 0, m: 0 }}>
                     <Collapse in={extend} timeout="auto" unmountOnExit sx={{ flexShrink: 0 }}>
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, p: 1 }}>
-                            <Typography variant="h6" sx={{ fontWeight: "bold", color: "error" }}>
-                                Error Details
-                            </Typography>
-                            {task.error.map((err, index) =>
-                                <Typography key={index} sx={{ overflowWrap: "anywhere", wordBreak: "break-all" }}>
-                                    <Box component="b" sx={{ color: "error" }}>Attempt {index + 1}:</Box> {err}
-                                </Typography>
-                            )}
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, p: 3 }}>
+                            <PanelTitle title="Error Details" />
+                            <TaskInfoItemBase pl={3} size="body1" content={
+                                task.error.map((err, index) => ["Attempt " + (index + 1), err])
+                            } />
                         </Box>
                     </Collapse>
                 </TableCell>

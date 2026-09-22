@@ -66,9 +66,10 @@ export function ColumnWidth({
 
 
 
-export function TableListContainer({ children }: { children: React.ReactNode }) {
+export function TableListContainer({ children, ref }: { children: React.ReactNode, ref?: React.Ref<HTMLTableElement> }) {
     return (
         <TableContainer
+            ref={ref}
             component={Box}
             sx={{
                 overflowY: "auto",

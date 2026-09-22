@@ -1,34 +1,29 @@
-import { Grid, Typography, Divider } from "@mui/material";
+import { Divider } from "@mui/material";
 
 import type { AudioRunning } from "~/models/running";
-import { NobarOverflow } from "~/components/frame";
+import { NobarOverflow, ColumnWidth } from "~/components/frame";
+import { TaskInfoItemBase } from "~/components//task_info";
+import { PanelTitle } from "./component";
 
 
 
 function Progress({ info }: { info: AudioRunning }) {
     return (
         <>
-            <Typography variant="h5" sx={{ mb: 1 }}>
-                Progress Info
-            </Typography>
+            <PanelTitle title="Progress Info" />
             <NobarOverflow gap={1}>
-                {[
-                    ["CPU Usage", `${info.cpu_usage} %`],
-                    ["RAM Usage", `${info.ram_usage} %`],
+                <TaskInfoItemBase size="body1" content={[
                     ["Start Time", new Date(info.start_time).toLocaleString()],
                     ["Consumed Time", info.consumed_time],
                     ["Bitrate", info.bitrate],
                     ["Size", info.size],
-                    ["Completed Time", info.completed_duration],
+                    ["Completed Duration", info.completed_duration],
+                    ["Total Duration", info.total_duration],
                     ["Dup Frames", info.dup_frames],
                     ["Drop Frames", info.drop_frames],
                     ["Speed", `${info.speed}x`],
                     ["ETA", info.eta],
-                ].map(([key, value]) => (
-                    <Typography key={key} variant="body1">
-                        <b>{key}:</b> {value}
-                    </Typography>
-                ))}
+                ]} />
             </NobarOverflow>
         </>
     );
@@ -36,38 +31,24 @@ function Progress({ info }: { info: AudioRunning }) {
 
 export default function AudioRunningProgress({ info }: { info: AudioRunning }) {
     return (
-        <Grid container spacing={1}>
-            <Grid size={8}>
-                <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
-                    Task Details
-                </Typography>
+        <>
+            <ColumnWidth>
+                <PanelTitle title="Task Details" />
+                <TaskInfoItemBase size="body1" content={[
+                    ["Output Path", info.output],
+                ]} />
+                <PanelTitle title="Input File(s)" mt={3} />
                 <NobarOverflow gap={1}>
-                    <Typography color='primary'>
-                        <b>Output</b>
-                    </Typography>
-                    <Typography>
-                        {info.output}
-                    </Typography>
-                    <Typography color='primary'>
-                        <b>Input(s)</b>
-                    </Typography>
-                    {info.input.map((input, index) =>
-                        <Typography
-                            key={index}
-                            sx={{
-                                overflowWrap: "break-word",
-                                wordBreak: "break-word",
-                            }}
-                        >
-                            <b>File {index + 1}:</b> {input}
-                        </Typography>
-                    )}
+                    <TaskInfoItemBase size="body1" content={
+                        info.input
+                            .map((input, index) => ["File " + (index + 1), input])
+                    } />
                 </NobarOverflow>
-            </Grid>
+            </ColumnWidth>
             <Divider orientation="vertical" />
-            <Grid size={4}>
+            <ColumnWidth width={"33%"}>
                 <Progress info={info} />
-            </Grid>
-        </Grid>
+            </ColumnWidth>
+        </>
     );
 }

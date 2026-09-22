@@ -46,11 +46,20 @@ function BaseItem({ image }: { image: ImageInfo }) {
 }
 
 function RunningItem({ image, now }: { image: ImageRunningItem; now: number }) {
+    const startTime = new Date(image.start_time).getTime();
+
+    const formatTime = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
     return (
         <TableRow>
             <BaseItem image={image} />
             <TableCell sx={{ whiteSpace: "nowrap" }}>
-                {new Date(image.start_time).toLocaleTimeString()}
+                {formatTime((now - startTime) / 1000)}
             </TableCell>
             <TableCell sx={{ whiteSpace: "nowrap" }}>
                 <LinearProgress color="primary" sx={{ minWidth: 133 }} />
@@ -207,7 +216,7 @@ export default function ImageRunningProgress({ info }: { info: ImageRunning }) {
                             icon={<PlayCircleRoundedIcon color="primary" />}
                             defaultOpen
                             length={info.running.length}
-                            head={<TableCell sx={{ whiteSpace: "nowrap" }}>Start Time</TableCell>}
+                            head={<TableCell sx={{ whiteSpace: "nowrap" }}>Consumed Time</TableCell>}
                             body={info.running.map((image) =>
                                 <RunningItem
                                     key={image.path}

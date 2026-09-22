@@ -103,12 +103,12 @@ async def pause_transcoding(
 
 
 # Waiting
-@task_router.get("/waiting/llm", response_model=list[LLMTaskInfo])
+@task_router.get("/waiting/llm", response_model=list[LLMWaiting])
 async def get_llm_tasks():
     tasks: list[LLMTaskInfo] = []
     rows = db.fetchall("SELECT * FROM llm_waiting;")
     for row in rows:
-        tasks.append(LLMTaskInfo.model_validate(dict(row)))
+        tasks.append(LLM.fetch_waiting(row))
     return tasks
 
 

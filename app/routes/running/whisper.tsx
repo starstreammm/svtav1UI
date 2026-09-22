@@ -1,36 +1,31 @@
-import { Grid, Typography, Divider } from "@mui/material";
+import { Divider } from "@mui/material";
 
 import type { WhisperRunning } from "~/models/running";
-import { NobarOverflow } from "~/components/frame";
-import { LogsProgress } from "./component";
+import { NobarOverflow, ColumnWidth } from "~/components/frame";
+import { TaskInfoItemBase } from "~/components/task_info";
+import { LogsProgress, PanelTitle } from "./component";
+
 
 
 export default function WhisperProgress({ info }: { info: WhisperRunning }) {
     return (
-        <Grid container spacing={1}>
-            <Grid size={3}>
-                <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
-                    Progress Info
-                </Typography>
+        <>
+            <ColumnWidth>
+                <PanelTitle title="Task Details" />
                 <NobarOverflow gap={1}>
-                    {[
-                        "Input:",
-                        info.input,
-                        "Output:",
-                        info.output,
-                        "Destination Language:",
-                        info.subtitle,
-                    ].map((text, index) =>
-                        <Typography key={index} variant="body1" sx={{ ml: index % 2 === 0 ? 0 : 3 }}>
-                            {index % 2 === 0 ? <b>{text}</b> : text}
-                        </Typography>)
-                    }
+                    <TaskInfoItemBase size="body1" content={[
+                        ["Start Time", new Date(info.start_time).toLocaleString()],
+                        ["Consumed Time", info.consumed_time],
+                        ["Input Path", info.input],
+                        ["Output Path", info.output],
+                        ["Destination Language", info.subtitle],
+                    ]} />
                 </NobarOverflow>
-            </Grid>
+            </ColumnWidth>
             <Divider orientation="vertical" />
-            <Grid size={9}>
-                <LogsProgress title="Whisper Logs" newLogs={info.log} />
-            </Grid>
-        </Grid>
+            <ColumnWidth width="73%">
+                <LogsProgress title="Whisper" newLogs={info.log} />
+            </ColumnWidth>
+        </>
     );
 }

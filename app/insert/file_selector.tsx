@@ -250,16 +250,27 @@ function FileSelectorItem(props: FileSelectorItemProps) {
                             whiteSpace: "nowrap",
                             overflow: "hidden",
                         }}
-                        secondary={props.type === "llm"
-                            ? props.path[0].split("/").slice(-1)[0]
-                            : props.path.split("/").slice(-1)[0]
-                        }
+                        secondary={props.path.split("/").slice(-1)[0]}
                     >
                         <b>File {props.index + 1}</b>
                     </ListItemText>
+                    {props.type === "llm" &&
+                        <ListItemText>
+                            {Language[props.lang]}
+                        </ListItemText>
+                    }
                     {props.type === "video" && props.info.codec === "av1" && (
                         <ListItemIcon>
-                            <Tooltip title="The original codec is AV1">
+                            <Tooltip title="The original codec is AV1.">
+                                <IconButton>
+                                    <WarningAmberRoundedIcon color="warning" />
+                                </IconButton>
+                            </Tooltip>
+                        </ListItemIcon>
+                    )}
+                    {props.type === "image" && props.path.endsWith(".avif") && (
+                        <ListItemIcon>
+                            <Tooltip title="The original image is AVIF format.">
                                 <IconButton>
                                     <WarningAmberRoundedIcon color="warning" />
                                 </IconButton>
@@ -275,16 +286,13 @@ function FileSelectorItem(props: FileSelectorItemProps) {
                             </IconButton>
                         </Tooltip>
                     </ListItemIcon>
-                    {props.type !== "llm"
-                        ? <ListItemIcon>
+                    {props.type !== "llm" &&
+                        <ListItemIcon>
                             {props.extend === props.path
                                 ? <ExpandLessRoundedIcon />
                                 : <ExpandMoreRoundedIcon />
                             }
                         </ListItemIcon>
-                        : <ListItemText>
-                            {Language[props.lang]}
-                        </ListItemText>
                     }
                 </ListItemButton>
             </ListItem>

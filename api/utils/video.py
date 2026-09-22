@@ -68,6 +68,8 @@ class Video:
     def get_progress(self):
         if self.transcode is not None:
             self.transcode.progress.consumed_time = self.transcode.timer.total()
+            if self.whisper is not None:
+                self.whisper.progress.log.clear()
             return self.transcode.progress
         elif self.whisper is not None:
             self.whisper.progress.consumed_time = self.whisper.timer.total()
@@ -116,6 +118,8 @@ class Video:
 
         except Exception as e:
             lg.error(f"Video task failed: {e}")
+            self._onFailed(str(e))
+            raise e
 
         else:
             await self._onSuccess()

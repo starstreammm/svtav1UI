@@ -14,7 +14,7 @@ import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import VerticalAlignTopRoundedIcon from '@mui/icons-material/VerticalAlignTopRounded';
 
-import { useEffect, useState, Fragment, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useState, Fragment, type Dispatch, type SetStateAction, useRef } from 'react';
 
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
@@ -31,6 +31,7 @@ import { deleteWaitingItem, fetchWaitingList, resortWaitingItem, type ApiSort, t
 
 export default function Waiting() {
     const [scrollTop, setScrollTop] = useLocalStorage("scrollTop", true, "local");
+    const tableRef = useRef<HTMLTableElement>(null);
 
     const [totalEta, setTotalEta] = useState<number>(0);
     const [waitingInfo, setWaitingInfo] = useState<ApiWaiting[]>([]);
@@ -50,7 +51,14 @@ export default function Waiting() {
         };
 
         resortWaitingItem(sortDetail)
-            .then(() => setWaitingInfo(newArr))
+            .then(() => {
+                const scrollY = tableRef.current?.scrollTop ?? 0;
+                setWaitingInfo(newArr);
+                requestAnimationFrame(() => tableRef.current?.scrollTo({
+                    top: scrollTop ? 0 : scrollY,
+                    behavior: scrollTop ? "smooth" : "instant",
+                }));
+            })
     }
 
     const refreshList = throttle(() => {
@@ -65,7 +73,7 @@ export default function Waiting() {
     if (waitingInfo.length === 0) { return (<NoContent title="waiting" />); }
 
     return (
-        <TableListContainer>
+        <TableListContainer ref={tableRef}>
             <TableHead>
                 <TableRow>
                     <TableCell align='center' className="no-wrap">UID</TableCell>

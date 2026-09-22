@@ -134,7 +134,13 @@ export default function SettingsPanel({ settings, setSettings, setFiles, config,
                         <Switch
                             disabled={!LLMAvailable}
                             checked={config.subtitle ? true : false}
-                            onChange={(e) => setConfig({ ...config, subtitle: e.target.checked ? null : undefined })}
+                            onChange={(e) => {
+                                setConfig({
+                                    ...config,
+                                    subtitle: e.target.checked ? null : undefined,
+                                    only_subtitle: false,
+                                });
+                            }}
                         />
                     </Box>
                 </Tooltip>

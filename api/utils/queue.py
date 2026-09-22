@@ -92,18 +92,18 @@ class Queue:
             # Get Task
             task = await self._preprocess()
             if task is None:
-                # Process LLM tasks if any
-                row = db.fetchone("SELECT 1 FROM llm_waiting LIMIT 1;")
-                if row is not None and await SettingsManager.translator_check():
-                    self.running = LLM(SettingsManager._translator)
-                    while True:
-                        rtn = await self._llm_task()
-                        if not rtn:
-                            break
-                else:
-                    await asyncio.sleep(3)
+                if await SettingsManager.translator_check():
+                    # Process LLM tasks if any
+                    while db.fetchone("SELECT 1 FROM llm_waiting LIMIT 1;"):
+                        self.running = LLM(SettingsManager._translator)
+                        while True:
+                            rtn = await self._llm_task()
+                            if not rtn:
+                                break
+                    self.running = None
 
                 # Continue to next iteration
+                await asyncio.sleep(3)
                 continue
 
             # Run Task
@@ -124,8 +124,9 @@ class Queue:
                         ):
                             self.running = LLM(SettingsManager._translator)
                             await self._llm_task(task)
+                            self.running = None
                         else:
-                            LLM.insert(LLM.tran_from_taskinfo(task))
+                            LLM.insert(LLM.tran_from_videotask(task))
 
             except asyncio.CancelledError as e:
                 if str(e) == "task":
@@ -151,11 +152,11 @@ class Queue:
                 row = db.fetchone("SELECT * FROM llm_waiting ORDER BY uid ASC LIMIT 1;")
                 if row is None:
                     return False
-                task = LLMWaiting.model_validate(dict(row))
+                task = LLM.fetch_waiting(row)
                 db.execute("DELETE FROM llm_waiting WHERE uid=?;", task.uid)
 
             elif isinstance(task, VideoTaskInfo):
-                task = LLM.tran_from_taskinfo(task)
+                task = LLM.tran_from_videotask(task)
 
             try:
                 self.llm = await self.running.run(task)
@@ -163,7 +164,7 @@ class Queue:
                 LLM.insert(task)
                 raise e
             except Exception as e:
-                lg.error(f"LLM task failed: {task.output} {e}")
+                lg.exception(f"LLM task failed: {task.output} {e}")
                 db.execute(
                     "INSERT INTO failed (input, output, args, error, time) VALUES (?, ?, ?, ?, ?);",
                     str(task.input.resolve()),

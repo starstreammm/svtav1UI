@@ -67,7 +67,9 @@ export default function Completed() {
                                         ? task.input
                                         : task.type === "whisper"
                                             ? task.input.map((file) => file.split("/").pop()).join(", ")
-                                            : task.input.map((file) => file.path.split("/").pop()).join(", ")
+                                            : task.type === "image" && task.input.length > 3
+                                                ? `${task.input.length} image(s)`
+                                                : task.input.map((file) => file.path.split("/").pop()).join(", ")
                                     }
                                 </TableCell>
                                 <TableCell className="col-2">
