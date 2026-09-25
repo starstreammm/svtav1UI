@@ -112,6 +112,10 @@ export default function Waiting() {
                                 onClick={() => setExtend((prev) => (prev === task.uid ? null : task.uid))}
                                 onRefresh={refreshList}
                                 onMoveTop={() => resortTask(index, 0)}
+                                onDelete={() => {
+                                    deleteWaitingItem(task.uid)
+                                        .then(() => setWaitingInfo((prev) => prev.filter((t) => t.uid !== task.uid)))
+                                }}
                                 extend={extend === task.uid}
                                 setTotalEta={setTotalEta}
                             />
@@ -129,12 +133,13 @@ export default function Waiting() {
 
 
 
-function SortableWaitingItem({ task, index, onClick, onRefresh, onMoveTop, extend, setTotalEta }: {
+function SortableWaitingItem({ task, index, onClick, onRefresh, onMoveTop, onDelete, extend, setTotalEta }: {
     task: ApiWaiting;
     index: number;
     onClick: () => void;
     onRefresh: () => void;
     onMoveTop: () => void;
+    onDelete: () => void;
     extend?: boolean;
     setTotalEta: Dispatch<SetStateAction<number>>;
 }) {
@@ -180,7 +185,7 @@ function SortableWaitingItem({ task, index, onClick, onRefresh, onMoveTop, exten
                         onMouseEnter={onRefresh}
                         onClick={(e) => {
                             e.stopPropagation();
-                            deleteWaitingItem(task.uid);
+                            onDelete();
                         }}
                     >
                         <DeleteForeverRoundedIcon />

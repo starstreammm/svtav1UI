@@ -185,10 +185,16 @@ async def get_failed():
                 )
 
         else:
-            data = dict(row)
-            data["error"] = json.loads(row["error"])
-            data["args"] = LLMTranslateArgs.model_validate_json(row["args"])
-            tasks.append(LLMFailed.model_validate(data))
+            tasks.append(
+                LLMFailed(
+                    uid=row["uid"],
+                    input=Path(row["input"]),
+                    output=Path(row["output"]),
+                    args=LLMTranslateArgs.model_validate_json(row["args"]),
+                    error=json.loads(row["error"]),
+                    time=datetime.fromisoformat(row["time"]),
+                )
+            )
 
     tasks.reverse()
     return tasks

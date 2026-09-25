@@ -250,7 +250,11 @@ function FileSelectorItem(props: FileSelectorItemProps) {
                             whiteSpace: "nowrap",
                             overflow: "hidden",
                         }}
-                        secondary={props.path.split("/").slice(-1)[0]}
+                        secondary={
+                            props.type === "image"
+                                ? `${props.path.split("/").slice(-1)[0]} → ${props.info.output_name}.avif`
+                                : props.path.split("/").slice(-1)[0]
+                        }
                     >
                         <b>File {props.index + 1}</b>
                     </ListItemText>

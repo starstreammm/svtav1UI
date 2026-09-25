@@ -86,6 +86,7 @@ export function ImageInfoComponent({ image, index }: { image: ImageInfo, index?:
             <TaskInfoItemBase size="body1" content={[
                 ["Name", image.path.split("/").slice(-1)[0]],
                 ["Path", image.path],
+                ["Output Name", image.output_name],
                 ["Size", `${(image.size / 1024 / 1024).toFixed(2)} MB`],
                 ["Width", image.width],
                 ["Height", image.height],

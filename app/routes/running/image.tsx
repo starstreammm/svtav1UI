@@ -95,14 +95,7 @@ function CompletedItem({ image }: { image: ImageCompletedItem }) {
             <TableCell sx={{ whiteSpace: "nowrap" }}>
                 {image.consumed_time}
             </TableCell>
-            <TableCell sx={{ whiteSpace: "nowrap" }}>
-                <LinearProgress
-                    variant="determinate"
-                    value={100}
-                    color="success"
-                    sx={{ minWidth: 133 }}
-                />
-            </TableCell>
+            <TableCell />
         </TableRow>
     )
 }

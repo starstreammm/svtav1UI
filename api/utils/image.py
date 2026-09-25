@@ -202,7 +202,7 @@ class _ImageWorker:
         self.args = args
         self.file = file
         self.overwrite = overwrite
-        self.output = output / f"{file.path.stem}.avif"
+        self.output = output / f"{file.output_name}.avif"
         self.worker = asyncio.create_task(self._worker())
         self.proc: asyncio.subprocess.Process
         self.timer = Timer()

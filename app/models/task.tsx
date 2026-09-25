@@ -4,6 +4,7 @@ import type { LanguageKey } from "./const";
 // Image
 export interface ImageInfo {
     path: string;
+    output_name: string;
     size: number;
     width: number;
     height: number;

@@ -55,7 +55,6 @@ class LLMFailed(LLMApiBase):
     input: Path
     output: Path
     args: LLMTranslateArgs
-    settings: LLMSettings
     error: list[str]
     time: datetime
 

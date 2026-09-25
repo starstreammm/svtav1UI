@@ -138,6 +138,7 @@ class TaskInfo:
 
             self.info = ImageInfo(
                 path=self.path,
+                output_name=self.path.stem,
                 size=self.path.stat().st_size,
                 width=int(video["width"]),
                 height=int(video["height"]),

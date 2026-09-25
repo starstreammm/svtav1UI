@@ -2,7 +2,7 @@ from typing import Literal
 from pathlib import Path
 
 # Constants
-VERSION = "4.0.0"
+VERSION = "4.0.1"
 
 ImageSuffixs = [
     ".jpg",

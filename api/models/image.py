@@ -9,6 +9,7 @@ from models.base import ApiRunningBase
 
 class ImageInfo(BaseModel):
     path: Path
+    output_name: str
     size: int
     width: int
     height: int

@@ -9,8 +9,9 @@ import {
     Switch,
     Box,
 } from '@mui/material';
+import DriveFileRenameOutlineRoundedIcon from '@mui/icons-material/DriveFileRenameOutlineRounded';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { useNavigate } from "react-router";
 
 import type { ImageInfo, ImageTaskInfo } from "~/models/task";
@@ -26,6 +27,7 @@ import { SettingSlider } from "~/routes/settings/components/slider";
 import { fetchTranscodeSettings } from "~/routes/settings/function";
 import { fetchTaskInfo, submitTask } from "./function";
 import InputPart from "../file_selector";
+import BatchRenameDialog from "../rename";
 
 export default function VideoInsertTaskDialog({
     retry_task,
@@ -45,6 +47,7 @@ export default function VideoInsertTaskDialog({
     const [config, setConfig] = useState<ImageInsertConfig>({} as ImageInsertConfig);
     const [files, setFiles] = useState<ImageInfo[]>([]);
     const [eta, setEta] = useState<number>(-1);
+    const [batchRename, setBatchRename] = useState(false);
 
     useEffect(() => {
         if (files.length === 0)
@@ -84,7 +87,7 @@ export default function VideoInsertTaskDialog({
             },
             config.priority,
         ).then(() => {
-            pushMsg(`${files.length} task(s) inserted successfully.`, "success");
+            pushMsg(`Image task with ${files.length} images inserted successfully.`, "success");
             onClose();
             if (retry_task)
                 navigate("/failed");
@@ -136,6 +139,36 @@ export default function VideoInsertTaskDialog({
                                     Set Output Path
                                 </Typography>
                                 <EtaText eta={eta} title="Total ETA: " />
+                                {batchRename &&
+                                    <BatchRenameDialog
+                                        onClose={() => setBatchRename(false)}
+                                        filesName={() => files.map((file, index) => {
+                                            const setName = (newName: string | ((prev: string) => string)) => {
+                                                let newNameStr: string = file.output_name;
+                                                if (typeof newName === "function")
+                                                    newNameStr = newName(file.output_name);
+                                                else
+                                                    newNameStr = newName;
+                                                setFiles((prev) => {
+                                                    const newFiles = [...prev];
+                                                    newFiles[index] = { ...newFiles[index], output_name: newNameStr };
+                                                    return newFiles;
+                                                })
+                                            }
+                                            return [file.output_name, setName];
+                                        })}
+                                    />
+                                }
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="secondary"
+                                    sx={{ my: -2 }}
+                                    startIcon={<DriveFileRenameOutlineRoundedIcon />}
+                                    onClick={() => setBatchRename(true)}
+                                >
+                                    Batch Rename
+                                </Button>
                             </Box>
                             <PathSelector
                                 label="Output Path"

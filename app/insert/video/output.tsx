@@ -20,11 +20,9 @@ import {
     useEffect,
     useRef,
     useImperativeHandle,
-    type RefObject,
     type Dispatch,
     type SetStateAction,
     type ForwardedRef,
-    createRef,
 } from "react";
 
 import type { TranscodeSettings } from "~/models/settings";
@@ -34,9 +32,11 @@ import { Rotate, Language } from "~/models/const";
 import { EtaText, getEta } from "~/hooks/eta";
 import useLocalStorage from "~/hooks/storage";
 import { TaskInfoItemBase } from "~/components/task_info";
+import { pushMsg } from "~/components/error_popout";
 import PathSelector from "~/components/pathselector";
-import { RotateSelector, OrgLangSelector, DestLangSelector } from "./components";
 import { NobarOverflow } from "~/components/frame";
+import { RotateSelector, OrgLangSelector, DestLangSelector } from "./components";
+import BatchRenameDialog from "../rename";
 
 
 export function SingleOutput({ files, setFiles, settings, config, ref }: {
@@ -48,14 +48,14 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
 }) {
     const [output, setOutput] = useLocalStorage("outputPath", "local", "local");
     const [totalEta, setTotalEta] = useState(0);
-    const outputRefs = useRef<Record<string, RefObject<() => string>>>({});;
+    const outputRefs = useRef<Record<string, OutputItemRef | null>>({});
+    const [batchRename, setBatchRename] = useState(false);
 
     useImperativeHandle(ref, () => () => {
         let result: Record<string, string> = {};
         for (const [input, ref] of Object.entries(outputRefs.current)) {
-            console.log("ref", ref, ref.current());
-            if (ref.current) {
-                const path = ref.current();
+            if (ref) {
+                const path = ref.get();
                 result[input] = path;
             }
         }
@@ -66,6 +66,36 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
     return (
         <Box sx={{ display: "flex", height: "100%", flexDirection: "column", gap: 3 }}>
             <OutputTitle path={output} setPath={setOutput} totalEta={totalEta} />
+            <Box sx={{ display: "flex", justifyContent: "end" }}>
+                {batchRename &&
+                    <BatchRenameDialog
+                        onClose={() => setBatchRename(false)}
+                        filesName={() => files
+                            .map((file) => file.info.path)
+                            .map((path) => {
+                                const ref = outputRefs.current[path];
+                                if (ref) {
+                                    return [ref.getName(), ref.set];
+                                }
+                                else {
+                                    pushMsg(`OutputItemRef for ${path} is not set.`, "error");
+                                    throw new Error(`OutputItemRef for ${path} is not set.`);
+                                }
+                            })
+                        }
+                    />
+                }
+                <Button
+                    size="small"
+                    variant="outlined"
+                    color="secondary"
+                    sx={{ my: -2 }}
+                    startIcon={<DriveFileRenameOutlineRoundedIcon />}
+                    onClick={() => setBatchRename(true)}
+                >
+                    Batch Rename
+                </Button>
+            </Box>
             <NobarOverflow gap={1}>
                 {files
                     .filter((task) => config.allow_av1 || task.info.codec !== "av1")
@@ -91,7 +121,7 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
                             output={output}
                             setTotalEta={setTotalEta}
                             onlySubtitle={config.only_subtitle}
-                            ref={outputRefs.current[file.info.path] ??= createRef<() => string>() as RefObject<() => string>}
+                            ref={(ref) => (outputRefs.current[file.info.path] = ref)}
                         />
                     )
                 }
@@ -111,11 +141,11 @@ export function MultiOutput({ files, args, setArgs, settings, ref }: {
 }) {
     const [output, setOutput] = useLocalStorage("multi-outputPath", "local", "local");
     const [eta, setEta] = useState(-1);
-    const outputRef = useRef<() => string>(null);
+    const outputRef = useRef<OutputItemRef>(null);
 
     useImperativeHandle(ref, () => () => {
         if (outputRef.current)
-            return { path: outputRef.current() };
+            return { path: outputRef.current.get() };
         else
             throw new Error("Output path is not set.");
     });
@@ -167,6 +197,13 @@ function OutputTitle({ path, setPath, totalEta }: {
     );
 }
 
+interface OutputItemRef {
+    set: (newName: any) => void;
+    get: () => string;
+    getName: () => string;
+}
+
+
 function OutputItem({ index, file, setArgs, settings, output, setTotalEta, onlySubtitle, ref }: {
     index: number;
     file: VideoResponse;
@@ -175,7 +212,7 @@ function OutputItem({ index, file, setArgs, settings, output, setTotalEta, onlyS
     output: string;
     setTotalEta: Dispatch<SetStateAction<number>>;
     onlySubtitle: boolean;
-    ref: ForwardedRef<() => string>;
+    ref: ForwardedRef<OutputItemRef>;
 }) {
     const [rename, setRename] = useState(false);
     const [edit, setEdit] = useState(false);
@@ -194,9 +231,23 @@ function OutputItem({ index, file, setArgs, settings, output, setTotalEta, onlyS
         setName(defaultName);
     }, []);
 
-    useImperativeHandle(ref, () => () => {
-        return `${output}${output.endsWith("/") ? "" : "/"}${name}.mp4`;
-    });
+    useImperativeHandle(ref, () => ({
+        set: (newName) => {
+            if (typeof newName === "function") {
+                // value 是 (prev: string) => string
+                const next = newName(name);
+                setName(next);
+            }
+            else
+                setName(newName);
+        },
+        get: () => {
+            return `${output}${output.endsWith("/") ? "" : "/"}${name}.mp4`;
+        },
+        getName: () => {
+            return name;
+        },
+    }));
 
     return (
         <Box sx={{
