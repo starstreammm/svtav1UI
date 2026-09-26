@@ -24,6 +24,7 @@ class Whisper:
 
         # run command
         self.proc: asyncio.subprocess.Process
+        self.psutil_proc: psutil.Process
         self.monitor: Monitor
 
     @classmethod
@@ -36,23 +37,25 @@ class Whisper:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
-
+        self.psutil_proc = psutil.Process(self.proc.pid)
         self.monitor = Monitor(proc=self.proc, decoder=self._decoder)
         return self
 
     def resume(self):
         try:
-            psutil.Process(self.proc.pid).resume()
-            self.timer.resume()
+            self.psutil_proc.resume()
         except psutil.NoSuchProcess:
-            pass  # Process already terminated, nothing to resume
+            pass
+        else:
+            self.timer.resume()
 
     def pause(self):
         try:
-            psutil.Process(self.proc.pid).suspend()
-            self.timer.suspend()
+            self.psutil_proc.suspend()
         except psutil.NoSuchProcess:
-            pass  # Process already terminated, nothing to resume
+            pass
+        else:
+            self.timer.suspend()
 
     async def cancel(self, sig: str):
         await self.monitor.cancel(sig)

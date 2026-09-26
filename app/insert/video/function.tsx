@@ -19,11 +19,27 @@ export async function submitTask(task: VideoTaskInfo, priority: boolean) {
 
 export async function fetchTaskInfo(path: string): Promise<VideoResponse> {
     try {
-        const res = await api.get(`${apiUrl}/task/spawn`, { searchParams: { path: path } }).json<VideoResponse>();
+        const res = await api.get(`${apiUrl}/task/spawn`, {
+            searchParams: { path: path },
+        }).json<VideoResponse>();
         return res;
     }
     catch (error) {
         pushError(error, "Fetch task info");
+        throw error;
+    }
+}
+
+export async function fetchBatchTaskInfo(path: string): Promise<VideoResponse[]> {
+    try {
+        const res = await api.get(`${apiUrl}/task/spawn/batch`, {
+            searchParams: { path, type: "video" },
+            timeout: 18 * 60 * 1000, // 18 minutes
+        }).json<VideoResponse[]>();
+        return res;
+    }
+    catch (error) {
+        pushError(error, "Fetch batch task info");
         throw error;
     }
 }

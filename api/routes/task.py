@@ -7,7 +7,7 @@ from models import *
 from utils import insert_waiting, fetch_ApiWaiting, fetch_task
 from utils.database import Database as db
 from utils.logger import LoggerBase as lg
-from utils.task_info import TaskInfo, VideoTaskSpwanResponse
+from utils.task_info import TaskInfo, BatchTaskInfo, VideoTaskSpwanResponse
 from utils.llm import LLM
 
 task_router = APIRouter(prefix="/task", tags=["task"])
@@ -25,6 +25,26 @@ async def spawn_task(
 
     task = await TaskInfo.run(path)
     return task.response()
+
+
+@task_router.get(
+    "/spawn/batch",
+    response_model=list[VideoTaskSpwanResponse] | list[ImageInfo],
+)
+async def spawn_batch_task(
+    path: Path = Query(
+        ..., description="The dir path of the videos or images to spawn a task for"
+    ),
+    type: Literal["video", "image"] = Query(
+        ..., description="The type of the files in the directory to spawn tasks for"
+    ),
+):
+    """
+    Spawn a batch transcoding task for multiple videos or images.
+    """
+
+    task = await BatchTaskInfo.run(path, type)
+    return task
 
 
 @task_router.post("/spwan/multi", response_model=VideoTranscodeArgs)

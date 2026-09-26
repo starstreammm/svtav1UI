@@ -60,11 +60,6 @@ export default function BatchRenameDialog({ onClose, filesName }: {
     };
 
 
-    useEffect(() => {
-        console.log("Input", filesName().map(([name, _]) => name));
-    }, [type]);
-
-
     return (
         <Dialog open onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>

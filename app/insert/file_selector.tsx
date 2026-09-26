@@ -41,7 +41,7 @@ type FileSelectorProps =
         disable_remove: number;
         files: ImageInfo[];
         setFiles: Dispatch<SetStateAction<ImageInfo[]>>;
-        onInsert: (paths: string[]) => Promise<void>;
+        onInsert: (path: string | string[]) => Promise<void>;
     }
     | {
         type: "video";
@@ -50,14 +50,14 @@ type FileSelectorProps =
         setConfig: Dispatch<SetStateAction<VideoInsertConfig>>;
         files: VideoResponse[];
         setFiles: Dispatch<SetStateAction<VideoResponse[]>>;
-        onInsert: (paths: string[]) => Promise<void>;
+        onInsert: (path: string | string[]) => Promise<void>;
     }
     | {
         type: "llm";
         disable_remove: number;
         files: [string, LanguageKey][];
         setFiles: Dispatch<SetStateAction<[string, LanguageKey][]>>;
-        onInsert: (paths: string[]) => Promise<void>;
+        onInsert: (path: string | string[]) => Promise<void>;
     };
 
 
@@ -307,7 +307,7 @@ function FileSelectorItem(props: FileSelectorItemProps) {
 
 export function FileSelectorAddNew({ onOpen, onInsert, filter }: {
     onOpen?: () => void;
-    onInsert: (paths: string[]) => Promise<void>;
+    onInsert: (path: string | string[]) => Promise<void>;
     filter: "video" | "image" | "subtitle";
 }) {
     const [open, setOpen] = useState(false);
@@ -319,11 +319,18 @@ export function FileSelectorAddNew({ onOpen, onInsert, filter }: {
         setOpen(false);
         fetchPathList(path, filter)
             .then((data) => {
-                onInsert(data.dir.length === 0 && data.file.length === 0 ? [path] : data.file.map((file) => path + file))
-                    .then(() => {
-                        setInserting(false);
-                        setPath(path.endsWith("/") ? path : path.slice(0, path.lastIndexOf("/") + 1));
-                    });
+                const exeReturn = async () => {
+                    if (data.dir.length === 0 && data.file.length === 0)
+                        await onInsert([path]);
+                    else if ((data.file.length > 0 && data.file.length < 30) || filter === "subtitle")
+                        await onInsert(data.file.map((file) => path + file));
+                    else
+                        await onInsert(path);
+                }
+                exeReturn().then(() => {
+                    setInserting(false);
+                    setPath(path.endsWith("/") ? path : path.slice(0, path.lastIndexOf("/") + 1));
+                });
             })
     }
 

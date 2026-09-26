@@ -49,12 +49,12 @@ class Image:
     def resume(self):
         self.timer.resume()
         for worker in self.workers:
-            asyncio.create_task(worker.resume())
+            worker.resume()
 
     def pause(self):
         self.timer.suspend()
         for worker in self.workers:
-            asyncio.create_task(worker.pause())
+            worker.pause()
 
     async def cancel(self, sig: str):
         self.worker.cancel(sig)
@@ -205,20 +205,27 @@ class _ImageWorker:
         self.output = output / f"{file.output_name}.avif"
         self.worker = asyncio.create_task(self._worker())
         self.proc: asyncio.subprocess.Process
+        self.psutil_proc: psutil.Process
         self.timer = Timer()
 
     async def wait(self):
         await self.worker
 
-    async def resume(self):
-        if not self.worker.done():
+    def resume(self):
+        try:
+            self.psutil_proc.resume()
+        except psutil.NoSuchProcess:
+            pass
+        else:
             self.timer.resume()
-            psutil.Process(self.proc.pid).resume()
 
-    async def pause(self):
-        if not self.worker.done():
+    def pause(self):
+        try:
+            self.psutil_proc.suspend()
+        except psutil.NoSuchProcess:
+            pass
+        else:
             self.timer.suspend()
-            psutil.Process(self.proc.pid).suspend()
 
     async def cancel(self, sig: str):
         self.worker.cancel(sig)
@@ -231,6 +238,7 @@ class _ImageWorker:
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.PIPE,
             )
+            self.psutil_proc = psutil.Process(self.proc.pid)
             stderr, _ = await self.proc.communicate()
             stderr = stderr.decode(errors="ignore") if stderr else None
 

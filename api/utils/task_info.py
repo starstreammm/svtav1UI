@@ -1,6 +1,8 @@
 import asyncio
 import shlex
 import json
+from pypinyin import lazy_pinyin
+from natsort import natsorted
 from pathlib import Path
 from pydantic import BaseModel
 
@@ -39,6 +41,8 @@ PIX_FMT_MAP = {
 
 
 class TaskInfo:
+    _sem = asyncio.Semaphore(8)  # Limit concurrent ffprobe calls
+
     def __init__(self, path: Path):
         if not path.is_file():
             raise FileNotFoundError(f"Input file {path} is missing.")
@@ -71,17 +75,18 @@ class TaskInfo:
             return self.info
 
     async def _fetch_file_info(self):
-        # run command
-        self.proc = await asyncio.create_subprocess_exec(
-            *self._command(),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        async with TaskInfo._sem:
+            # run command
+            self.proc = await asyncio.create_subprocess_exec(
+                *self._command(),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
 
-        # fetch data
-        stdout, stderr = await self.proc.communicate()
-        if self.proc.returncode != 0:
-            raise RuntimeError(f"ffprobe failed: {stderr.decode()}")
+            # fetch data
+            stdout, stderr = await self.proc.communicate()
+            if self.proc.returncode != 0:
+                raise RuntimeError(f"ffprobe failed: {stderr.decode()}")
         data = json.loads(stdout)["streams"]
         video = next((s for s in data if s.get("codec_type") == "video"), {})
         audio = next((s for s in data if s.get("codec_type") == "audio"), {})
@@ -241,7 +246,8 @@ class TaskInfo:
                 "error",
                 "-show_entries",
                 "stream="
-                "codec_type,width,height,avg_frame_rate,sample_aspect_ratio,"
+                "codec_type,width,height,"
+                "avg_frame_rate,sample_aspect_ratio,"
                 "pix_fmt,color_space,color_transfer,color_primaries",
                 "-of",
                 "json",
@@ -387,3 +393,48 @@ class TaskInfo:
             return 8
 
         return 8
+
+
+class BatchTaskInfo:
+    def __init__(self, path: Path, type: Literal["video", "image"]):
+        if not path.is_dir():
+            raise FileNotFoundError(
+                f"Directory {path} does not exist or is not a directory."
+            )
+
+        self.files: list[Path] = []
+        for file in path.iterdir():
+            if file.is_file() and file.suffix.lower() in (
+                VideoSuffixs if type == "video" else ImageSuffixs
+            ):
+                self.files.append(file)
+
+        self.files = natsorted(self.files, key=lambda x: lazy_pinyin(x.name))
+
+    @classmethod
+    async def run(
+        cls,
+        path: Path,
+        type: Literal["video", "image"],
+    ) -> list[VideoTaskSpwanResponse | ImageInfo]:
+        self = cls(path, type)
+
+        res = await asyncio.to_thread(
+            asyncio.run,
+            self._worker(),
+        )
+        return res
+
+    async def _worker(self):
+        tasks = await asyncio.gather(
+            *[TaskInfo.run(file) for file in self.files],
+            return_exceptions=True,
+        )
+
+        results: list[VideoTaskSpwanResponse | ImageInfo] = []
+        for task in tasks:
+            if isinstance(task, BaseException):
+                lg.error(f"Error processing file: {task}")
+            else:
+                results.append(task.response())
+        return results

@@ -19,7 +19,7 @@ import { pushError, pushMsg } from '~/components/error_popout';
 import { ColumnWidth } from "~/components/frame";
 import { fetchTranscodeSettings } from "~/routes/settings/function";
 import { defaultTranscodeConfig } from "~/routes/settings/default";
-import { fetchTaskInfo, fetchMultiTaskInfo, submitTask } from "./function";
+import { fetchTaskInfo, fetchMultiTaskInfo, submitTask, fetchBatchTaskInfo } from "./function";
 import InputPart from "../file_selector";
 import { SingleOutput, MultiOutput } from "./output";
 import SettingsPart from "./settings";
@@ -89,7 +89,6 @@ export default function VideoInsertTaskDialog({
     const onCommit = () => {
         setInserting(true);
         const output_path = outputRef.current?.();
-        console.log("output_path", output_path);
         if (!output_path) {
             setInserting(false);
             pushError("Output path is not set or not tasks to insert.");
@@ -184,13 +183,19 @@ export default function VideoInsertTaskDialog({
                             files={files}
                             setFiles={setFiles}
                             onInsert={async (paths) => {
-                                const newFiles = await Promise.allSettled(paths.map((path) => fetchTaskInfo(path)));
-                                setFiles((prev) => [
-                                    ...prev,
-                                    ...newFiles
-                                        .filter((result) => result.status === "fulfilled")
-                                        .map((result) => (result.value))
-                                ]);
+                                if (typeof paths === "string") {
+                                    const newFiles = await fetchBatchTaskInfo(paths);
+                                    setFiles((prev) => [...prev, ...newFiles]);
+                                }
+                                else {
+                                    const newFiles = await Promise.allSettled(paths.map((path) => fetchTaskInfo(path)));
+                                    setFiles((prev) => [
+                                        ...prev,
+                                        ...newFiles
+                                            .filter((result) => result.status === "fulfilled")
+                                            .map((result) => (result.value))
+                                    ]);
+                                }
                             }}
                         />
                     </ColumnWidth>

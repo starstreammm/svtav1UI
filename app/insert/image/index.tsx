@@ -25,7 +25,7 @@ import PathSelector from "~/components/pathselector";
 import { SettingItemFrame } from "~/routes/settings/components/frame";
 import { SettingSlider } from "~/routes/settings/components/slider";
 import { fetchTranscodeSettings } from "~/routes/settings/function";
-import { fetchTaskInfo, submitTask } from "./function";
+import { fetchTaskInfo, fetchBatchTaskInfo, submitTask } from "./function";
 import InputPart from "../file_selector";
 import BatchRenameDialog from "../rename";
 
@@ -126,8 +126,25 @@ export default function VideoInsertTaskDialog({
                             files={files}
                             setFiles={setFiles}
                             onInsert={async (paths) => {
-                                const result = await Promise.allSettled(paths.map((path) => fetchTaskInfo(path)));
-                                setFiles((prev) => [...prev, ...result.filter(r => r.status === "fulfilled").map(r => r.value)]);
+                                if (typeof paths === "string") {
+                                    const result = await fetchBatchTaskInfo(paths);
+                                    setFiles((prev) => [
+                                        ...prev,
+                                        ...result
+                                    ]);
+                                }
+                                else {
+                                    const result = await Promise.allSettled(
+                                        paths.map((path) => fetchTaskInfo(path))
+                                    );
+                                    setFiles((prev) => [
+                                        ...prev,
+                                        ...result
+                                            .filter(r => r.status === "fulfilled")
+                                            .map(r => r.value)
+                                    ]);
+                                }
+
                             }}
                         />
                     </ColumnWidth>
