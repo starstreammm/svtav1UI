@@ -56,7 +56,7 @@ class TaskInfo:
             raise ValueError(f"Unsupported file type: {path.suffix}")
 
         self.path = path
-        self.info: VideoInfo | ImageInfo
+        self.info: VideoInfo | ImageInfoForTask
         self.args: VideoTranscodeArgs
 
     @classmethod
@@ -68,11 +68,17 @@ class TaskInfo:
 
         return self
 
-    def response(self) -> VideoTaskSpwanResponse | ImageInfo:
+    def response_task(self) -> VideoTaskSpwanResponse | ImageInfoForTask:
         if isinstance(self.info, VideoInfo):
             return VideoTaskSpwanResponse(info=self.info, args=self.args)
         else:
             return self.info
+
+    def response_info(self) -> VideoInfo | ImageInfo:
+        if isinstance(self.info, VideoInfo):
+            return self.info
+        else:
+            return ImageInfo.model_validate(self.info.model_dump())
 
     async def _fetch_file_info(self):
         async with TaskInfo._sem:
@@ -137,23 +143,27 @@ class TaskInfo:
                 raise ValueError("Missing required image information.")
 
             sar = video.get("sample_aspect_ratio", "N/A")
+            pix_fmt = video.get("pix_fmt", "yuv420p").lower()
             cs = video.get("color_space", "").lower()
             ct = video.get("color_transfer", "").lower()
             cp = video.get("color_primaries", "").lower()
 
-            self.info = ImageInfo(
+            self.info = ImageInfoForTask(
                 path=self.path,
                 output_name=self.path.stem,
                 size=self.path.stat().st_size,
                 width=int(video["width"]),
                 height=int(video["height"]),
                 sar=sar,
-                pix_fmt=video.get("pix_fmt", "yuv420p").lower(),
+                sar_fix=self._check_sar(sar),
+                pix_fmt=pix_fmt,
+                output_pix_fmt=PIX_FMT_MAP[self._check_fmt_chroma(pix_fmt)][
+                    self._check_fmt_bit(pix_fmt)
+                ],
                 color_space=cs,
                 color_transfer=ct,
                 color_primaries=cp,
                 zscale=self._check_zscale(cs, ct, cp, "image"),
-                sar_fix=self._check_sar(sar),
             )
 
     def _fetch_transcode_args(self):
@@ -436,5 +446,5 @@ class BatchTaskInfo:
             if isinstance(task, BaseException):
                 lg.error(f"Error processing file: {task}")
             else:
-                results.append(task.response())
+                results.append(task.response_task())
         return results

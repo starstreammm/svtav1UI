@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, Optional
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -9,7 +9,6 @@ from models.base import ApiRunningBase
 
 class ImageInfo(BaseModel):
     path: Path
-    output_name: str
     size: int
     width: int
     height: int
@@ -18,8 +17,13 @@ class ImageInfo(BaseModel):
     color_space: str
     color_transfer: str
     color_primaries: str
-    zscale: str
+
+
+class ImageInfoForTask(ImageInfo):
+    output_name: str
     sar_fix: str
+    output_pix_fmt: str
+    zscale: str
 
 
 class ImageETAInfo(BaseModel):
@@ -33,7 +37,7 @@ class ImageTranscodeArgs(BaseModel):
 
 
 class ImageTaskInfo(BaseModel):
-    input: list[ImageInfo]
+    input: list[ImageInfoForTask]
     output: Path
     args: ImageTranscodeArgs
     settings: TranscodeSettings
@@ -59,16 +63,16 @@ class ImageWaiting(ImageApiBase, ImageTaskInfo):
     error: list[str] = []
 
 
-class ImageRunningItem(ImageInfo):
+class ImageRunningItem(ImageInfoForTask):
     start_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class ImageErrorItem(ImageInfo):
+class ImageErrorItem(ImageInfoForTask):
     error: str
 
 
 class ImageCompletedItem(BaseModel):
-    input: ImageInfo
+    input: ImageInfoForTask
     output: ImageInfo
     consumed_time: timedelta
 
@@ -84,7 +88,7 @@ class ImageRunning(ImageApiBase, ApiRunningBase):
     settings: TranscodeSettings
 
     # Progress Info
-    pending: list[ImageInfo] = []
+    pending: list[ImageInfoForTask] = []
     completed: list[ImageCompletedItem] = []
     running: list[ImageRunningItem] = []
     error: list[ImageErrorItem] = []
@@ -97,7 +101,7 @@ class ImageFailed(ImageApiBase, ImageTaskInfo):
 
 
 class ImageCompleted(ImageApiBase):
-    input: list[ImageInfo]
+    input: list[ImageInfoForTask]
     output: list[ImageInfo]
     args: ImageTranscodeArgs
     total_consumed: str

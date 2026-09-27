@@ -75,7 +75,11 @@ export function VideoArgsComponent({ size, task }: {
     );
 }
 
-export function ImageInfoComponent({ image, index }: { image: ImageInfo, index?: number }) {
+export function ImageInfoComponent({ image, index, hideOutput }: {
+    image: ImageInfo;
+    index?: number;
+    hideOutput?: boolean;
+}) {
     return (
         <>
             {index !== undefined &&
@@ -86,17 +90,41 @@ export function ImageInfoComponent({ image, index }: { image: ImageInfo, index?:
             <TaskInfoItemBase size="body1" content={[
                 ["Name", image.path.split("/").slice(-1)[0]],
                 ["Path", image.path],
-                ["Output Name", image.output_name],
+                ...(hideOutput
+                    ? []
+                    : [["Output Name", image.output_name] as [string, string]]
+                ),
                 ["Size", `${(image.size / 1024 / 1024).toFixed(2)} MB`],
                 ["Width", image.width],
                 ["Height", image.height],
                 ["SAR", image.sar],
+                ...(hideOutput
+                    ? []
+                    : [["SAR Fix", image.sar_fix === "" ? "N/A" : image.sar_fix] as [string, string]]
+                ),
                 ["Pixel Format", image.pix_fmt],
+                ...(hideOutput
+                    ? []
+                    : [["Output Pixel Format", image.output_pix_fmt] as [string, string]]
+                ),
                 ["Color Info", `s: ${image.color_space}; t: ${image.color_transfer}; p: ${image.color_primaries}`],
-                ["SAR Fix", image.sar_fix === "" ? "N/A" : image.sar_fix],
-                ["Zscale", image.zscale],
+                ...(hideOutput
+                    ? []
+                    : [["Zscale", image.zscale] as [string, string]]
+                ),
             ]} />
         </>
+    );
+}
+
+export function ImageOutputInfoComponent({ image }: { image: ImageInfo }) {
+    return (
+        <TaskInfoItemBase size="body1" content={[
+            ["Output Name", image.output_name],
+            ["SAR Fix", image.sar_fix === "" ? "N/A" : image.sar_fix],
+            ["Output Pixel Format", image.output_pix_fmt],
+            ["Zscale", image.zscale],
+        ]} />
     );
 }
 

@@ -12,7 +12,7 @@ from models import (
     VideoETAInfo,
     ImageETAInfo,
     VideoInfo,
-    ImageInfo,
+    ImageInfoForTask,
     VideoTranscodeArgs,
     ImageTranscodeArgs,
     TranscodeSettings,
@@ -23,7 +23,9 @@ from models import (
 def fetch_task(row) -> ImageTaskInfo | VideoTaskInfo:
     try:
         return ImageTaskInfo(
-            input=[ImageInfo.model_validate(f) for f in json.loads(row["input"])],
+            input=[
+                ImageInfoForTask.model_validate(f) for f in json.loads(row["input"])
+            ],
             output=Path(row["output"]),
             args=ImageTranscodeArgs.model_validate_json(row["args"]),
             settings=TranscodeSettings.model_validate_json(row["settings"]),

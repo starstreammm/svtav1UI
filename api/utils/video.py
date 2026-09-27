@@ -135,7 +135,7 @@ class Video:
                     lg.error(f"Failed to delete {f.path.resolve()}: {e}")
 
         if self.transcode is not None:
-            output_info = await TaskInfo.run(self.task.output)
+            output_info = (await TaskInfo.run(self.task.output)).response_info()
 
             db.execute(
                 """
@@ -144,7 +144,7 @@ class Video:
                     VALUES ('video', ?, ?, ?, ?, ?);
                 """,
                 json.dumps([f.model_dump(mode="json") for f in self.task.input]),
-                output_info.info.model_dump_json(),
+                output_info.model_dump_json(),
                 self.task.args.model_dump_json(),
                 str(self.timer.total()).split(".")[0],
                 datetime.now(timezone.utc).isoformat(),

@@ -14,7 +14,7 @@ task_router = APIRouter(prefix="/task", tags=["task"])
 
 
 # Task spawn
-@task_router.get("/spawn", response_model=VideoTaskSpwanResponse | ImageInfo)
+@task_router.get("/spawn", response_model=VideoTaskSpwanResponse | ImageInfoForTask)
 async def spawn_task(
     path: Path = Query(
         ..., description="The path of the video or image file to spawn a task for"
@@ -24,12 +24,12 @@ async def spawn_task(
         raise FileNotFoundError(f"File {path} does not exist.")
 
     task = await TaskInfo.run(path)
-    return task.response()
+    return task.response_task()
 
 
 @task_router.get(
     "/spawn/batch",
-    response_model=list[VideoTaskSpwanResponse] | list[ImageInfo],
+    response_model=list[VideoTaskSpwanResponse] | list[ImageInfoForTask],
 )
 async def spawn_batch_task(
     path: Path = Query(
@@ -254,7 +254,8 @@ async def get_completed():
             tasks.append(
                 ImageCompleted(
                     input=[
-                        ImageInfo.model_validate(f) for f in json.loads(row["input"])
+                        ImageInfoForTask.model_validate(f)
+                        for f in json.loads(row["input"])
                     ],
                     output=[
                         ImageInfo.model_validate(f) for f in json.loads(row["output"])

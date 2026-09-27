@@ -7,13 +7,13 @@ from datetime import datetime, timezone
 from copy import deepcopy
 
 from models import (
+    ImageInfoForTask,
     ImageTranscodeArgs,
     ImageWaiting,
     ImageRunning,
     ImageRunningItem,
     ImageErrorItem,
     ImageCompletedItem,
-    ImageInfo,
 )
 from utils import insert_waiting
 from utils.logger import LoggerBase as lg
@@ -129,7 +129,7 @@ class Image:
             self.progress.completed.append(
                 ImageCompletedItem(
                     input=task.file,
-                    output=output_info.response(),  # pyright: ignore
+                    output=output_info.response_info(),  # pyright: ignore
                     consumed_time=task.timer.total(),
                 )
             )
@@ -169,7 +169,7 @@ class Image:
         self.task.retry += 1
         self.task.error += [f"{e.path.name}: {e.error}" for e in self.progress.error]
         self.task.input = [
-            ImageInfo.model_validate(e.model_dump()) for e in self.progress.error
+            ImageInfoForTask.model_validate(e.model_dump()) for e in self.progress.error
         ]
 
         if self.task.retry < self.task.settings.retry:
@@ -192,10 +192,11 @@ class Image:
 
 
 class _ImageWorker:
+
     def __init__(
         self,
         args: ImageTranscodeArgs,
-        file: ImageInfo,
+        file: ImageInfoForTask,
         overwrite: bool,
         output: Path,
     ):
@@ -275,7 +276,7 @@ class _ImageWorker:
         # default filter
         filters.append("setsar=1")
         filters.append(self.file.zscale)
-        filters.append(f"format={self.file.pix_fmt}")
+        filters.append(f"format={self.file.output_pix_fmt}")
 
         cmd = [
             "ffmpeg",
@@ -294,6 +295,8 @@ class _ImageWorker:
             "1",
             "-vf",
             ",".join(filters),
+            "-pix_fmt",
+            self.file.output_pix_fmt,
             str(self.output.resolve()),
         ]
 

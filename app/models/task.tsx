@@ -9,12 +9,13 @@ export interface ImageInfo {
     width: number;
     height: number;
     sar: string;
+    sar_fix: string;
     pix_fmt: string;
+    output_pix_fmt: string;
     color_space: string;
     color_transfer: string;
     color_primaries: string;
     zscale: string;
-    sar_fix: string;
 }
 
 export interface ImageETAInfo {

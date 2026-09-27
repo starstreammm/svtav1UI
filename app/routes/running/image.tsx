@@ -1,4 +1,5 @@
 import {
+    Box,
     Divider,
     List,
     ListItemButton,
@@ -12,6 +13,7 @@ import {
     TableCell,
     TableBody,
     LinearProgress,
+    Typography,
 } from "@mui/material";
 import PlayCircleRoundedIcon from '@mui/icons-material/PlayCircleRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
@@ -22,25 +24,71 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 
 import { useState, useEffect } from "react";
 
-import type { ImageRunning, ImageRunningItem, ImageCompletedItem, ImageErrorItem } from "~/models/running";
+import type {
+    ImageRunning,
+    ImageRunningItem,
+    ImageCompletedItem,
+    ImageErrorItem,
+} from "~/models/running";
 import type { ImageInfo } from "~/models/task";
 import { NobarOverflow, ColumnWidth } from "~/components/frame";
-import { ImageArgsComponent, SettingsInfoComponent, TaskInfoItemBase } from "~/components/task_info";
+import {
+    ImageInfoComponent,
+    ImageArgsComponent,
+    SettingsInfoComponent,
+    TaskInfoItemBase,
+} from "~/components/task_info";
 import { PanelTitle } from "./component";
 
-function BaseItem({ image }: { image: ImageInfo }) {
+function BaseItem({ image, head, detail, colSpan = 6 }: {
+    image: ImageInfo;
+    head?: React.ReactNode;
+    detail?: React.ReactNode;
+    colSpan?: number;
+}) {
+    const [extend, setExtend] = useState<boolean>(false);
+
+
     return (
         <>
-            <TableCell>{image.path}</TableCell>
-            <TableCell sx={{ whiteSpace: "nowrap" }}>
-                {image.width} x {image.height}
-            </TableCell>
-            <TableCell sx={{ whiteSpace: "nowrap" }}>
-                {`${(image.size / 1024 / 1024).toFixed(2)} MB`}
-            </TableCell>
-            <TableCell sx={{ whiteSpace: "nowrap" }}>
-                {image.pix_fmt}
-            </TableCell>
+            <TableRow sx={{ cursor: "pointer" }} onClick={() => setExtend(!extend)}>
+                <TableCell>{image.path}</TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                    {image.width} x {image.height}
+                </TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                    {`${(image.size / 1024 / 1024).toFixed(2)} MB`}
+                </TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                    {image.pix_fmt}
+                </TableCell>
+                {head}
+                <TableCell>
+                    {extend ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
+                </TableCell>
+            </TableRow>
+            <TableRow sx={{ p: 0, m: 0 }}>
+                <TableCell colSpan={colSpan} sx={{ p: 0 }}>
+                    <Collapse in={extend} timeout="auto" unmountOnExit sx={{ flexShrink: 0 }}>
+                        <Box sx={{
+                            display: "flex",
+                            width: "100%",
+                            flexDirection: "row",
+                            gap: 1,
+                            p: 1,
+                        }}>
+                            <ColumnWidth>
+                                <ImageInfoComponent image={image} hideOutput={detail ? true : false} />
+                            </ColumnWidth>
+                            {detail &&
+                                <ColumnWidth width="50%">
+                                    {detail}
+                                </ColumnWidth>
+                            }
+                        </Box>
+                    </Collapse>
+                </TableCell>
+            </TableRow>
         </>
     );
 }
@@ -56,22 +104,22 @@ function RunningItem({ image, now }: { image: ImageRunningItem; now: number }) {
     };
 
     return (
-        <TableRow>
-            <BaseItem image={image} />
-            <TableCell sx={{ whiteSpace: "nowrap" }}>
-                {formatTime((now - startTime) / 1000)}
-            </TableCell>
-            <TableCell sx={{ whiteSpace: "nowrap" }}>
-                <LinearProgress color="primary" sx={{ minWidth: 133 }} />
-            </TableCell>
-        </TableRow>
+        <BaseItem image={image} colSpan={7} head={
+            <>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                    {formatTime((now - startTime) / 1000)}
+                </TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                    <LinearProgress color="primary" sx={{ minWidth: 133 }} />
+                </TableCell>
+            </>
+        } />
     );
 }
 
 function PendingItem({ image, now }: { image: ImageInfo; now: number }) {
     return (
-        <TableRow>
-            <BaseItem image={image} />
+        <BaseItem image={image} head={
             <TableCell sx={{ whiteSpace: "nowrap" }}>
                 <LinearProgress
                     variant="buffer"
@@ -81,46 +129,53 @@ function PendingItem({ image, now }: { image: ImageInfo; now: number }) {
                     sx={{ minWidth: 133 }}
                 />
             </TableCell>
-        </TableRow>
+        } />
     );
 }
 
 function CompletedItem({ image }: { image: ImageCompletedItem }) {
     return (
-        <TableRow>
-            <BaseItem image={image.output} />
-            <TableCell sx={{ whiteSpace: "nowrap" }}>
-                {`${((1 - (image.output.size / image.input.size)) * 100).toFixed(2)}%`}
-            </TableCell>
-            <TableCell sx={{ whiteSpace: "nowrap" }}>
-                {image.consumed_time}
-            </TableCell>
-            <TableCell />
-        </TableRow>
+        <BaseItem
+            image={image.output}
+            colSpan={8}
+            head={
+                <>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        {`${((1 - (image.output.size / image.input.size)) * 100).toFixed(2)}%`}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        {image.consumed_time}
+                    </TableCell>
+                    <TableCell />
+                </>
+            }
+            detail={<ImageInfoComponent image={image.input} />}
+        />
     )
 }
 
 function ErrorItem({ image }: { image: ImageErrorItem }) {
     return (
-        <TableRow>
-            <BaseItem image={image} />
-            <TableCell sx={{
-                whiteSpace: "nowrap",
-                maxWidth: 333,
-                fontColor: "error.main",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-            }}>
-                {image.error}
-            </TableCell>
-            <TableCell sx={{ whiteSpace: "nowrap" }}>
-                <LinearProgress
-                    value={100}
-                    color="error"
-                    sx={{ minWidth: 133 }}
-                />
-            </TableCell>
-        </TableRow>
+        <BaseItem
+            image={image}
+            head={
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                    <LinearProgress
+                        value={100}
+                        color="error"
+                        sx={{ minWidth: 133 }}
+                    />
+                </TableCell>
+            }
+            detail={
+                <Typography>
+                    <Box component="b" sx={{ color: "error.main" }}>
+                        Error:
+                    </Box>
+                    {image.error}
+                </Typography>
+            }
+        />
     );
 }
 
@@ -162,6 +217,7 @@ function StateListItem({ label, icon, head, body, defaultOpen = false, length, o
                                 <TableCell sx={{ whiteSpace: "nowrap" }}>Pixel Format</TableCell>
                                 {head}
                                 <TableCell sx={{ whiteSpace: "nowrap" }} />
+                                <TableCell sx={{ whiteSpace: "nowrap" }} />
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -192,6 +248,7 @@ export default function ImageRunningProgress({ info }: { info: ImageRunning }) {
                 <PanelTitle title="Arguments & Settings" />
                 <NobarOverflow gap={1}>
                     <TaskInfoItemBase size="body1" content={[
+                        ["Output Path", info.output],
                         ["Start Time", new Date(info.start_time).toLocaleString()],
                         ["Consumed Time", info.consumed_time],
                     ]} />

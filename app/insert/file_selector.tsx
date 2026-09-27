@@ -152,7 +152,7 @@ function FileSelectorTitle(props: FileSelectorProps) {
             alignItems: "center",
         }}>
             <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                Add Files
+                Add Files ({props.files.length})
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center" }}>
                 <Button
