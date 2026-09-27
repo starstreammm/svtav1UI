@@ -50,11 +50,11 @@ jobs:
 
           cp -r build/client release/dist
           cp -r api release/api
-          cp requirements.txt release/api
+          cp pyproject.toml uv.lock release/api
           cp nginx_entrypoint.sh release/
 
           cp -r api/* backend/
-          cp requirements.txt backend/
+          cp pyproject.toml uv.lock backend/
 
           tar -czf release.tar.gz release
           tar -czf backend.tar.gz backend
