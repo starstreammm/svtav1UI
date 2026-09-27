@@ -32,7 +32,7 @@ class Image:
 
         self.logic_cores = psutil.cpu_count() or 1
         self.task = task
-        self.semaphore = asyncio.Semaphore(int(self.logic_cores / 6))
+        self.semaphore = asyncio.Semaphore(max(1, int(self.logic_cores / 6)))
         self.timer = Timer()
 
         self.progress = ImageRunning.model_validate(task.model_dump(exclude={"error"}))
@@ -192,7 +192,6 @@ class Image:
 
 
 class _ImageWorker:
-
     def __init__(
         self,
         args: ImageTranscodeArgs,
@@ -213,6 +212,8 @@ class _ImageWorker:
         await self.worker
 
     def resume(self):
+        if self.worker.done():
+            return
         try:
             self.psutil_proc.resume()
         except psutil.NoSuchProcess:
@@ -221,6 +222,8 @@ class _ImageWorker:
             self.timer.resume()
 
     def pause(self):
+        if self.worker.done():
+            return
         try:
             self.psutil_proc.suspend()
         except psutil.NoSuchProcess:
@@ -229,6 +232,8 @@ class _ImageWorker:
             self.timer.suspend()
 
     async def cancel(self, sig: str):
+        if self.worker.done():
+            return
         self.worker.cancel(sig)
         await self.worker
 

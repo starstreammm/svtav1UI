@@ -41,8 +41,6 @@ PIX_FMT_MAP = {
 
 
 class TaskInfo:
-    _sem = asyncio.Semaphore(8)  # Limit concurrent ffprobe calls
-
     def __init__(self, path: Path):
         if not path.is_file():
             raise FileNotFoundError(f"Input file {path} is missing.")
@@ -81,18 +79,17 @@ class TaskInfo:
             return ImageInfo.model_validate(self.info.model_dump())
 
     async def _fetch_file_info(self):
-        async with TaskInfo._sem:
-            # run command
-            self.proc = await asyncio.create_subprocess_exec(
-                *self._command(),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+        # run command
+        self.proc = await asyncio.create_subprocess_exec(
+            *self._command(),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
 
-            # fetch data
-            stdout, stderr = await self.proc.communicate()
-            if self.proc.returncode != 0:
-                raise RuntimeError(f"ffprobe failed: {stderr.decode()}")
+        # fetch data
+        stdout, stderr = await self.proc.communicate()
+        if self.proc.returncode != 0:
+            raise RuntimeError(f"ffprobe failed: {stderr.decode()}")
         data = json.loads(stdout)["streams"]
         video = next((s for s in data if s.get("codec_type") == "video"), {})
         audio = next((s for s in data if s.get("codec_type") == "audio"), {})
@@ -436,8 +433,14 @@ class BatchTaskInfo:
         return res
 
     async def _worker(self):
+        _sem = asyncio.Semaphore(8)  # Limit concurrent ffprobe calls
+
+        async def sem_task(file: Path):
+            async with _sem:
+                return await TaskInfo.run(file)
+
         tasks = await asyncio.gather(
-            *[TaskInfo.run(file) for file in self.files],
+            *[sem_task(file) for file in self.files],
             return_exceptions=True,
         )
 

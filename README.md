@@ -47,6 +47,14 @@ If you truly want to save the history (which used for ETA Model), you can do an 
 
 ## Installations
 
+### 0. Install Python
+
+> [!IMPORTANT]
+>
+> We do not recommend using 3.14.7 on MacOS as the task pause&resume function will face an uncoverable crash. See [here](https://github.com/python/cpython/issues/158287).
+>
+> This doesn't effect Windows. Not tested on Linux.
+
 ### 1. Install FFmpeg
 
 Follow the instruction from [ffmpeg.org](https://ffmpeg.org).
@@ -63,13 +71,13 @@ tar -xzf backend.tar.gz
 - Install pip packages:
 
 ```bas
-pip install -r requirements.txt
+uv sync
 ```
 
 - Run Api:
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 38889
+uv run python api/main.py
 ```
 
 ### 3. Install Docker
@@ -113,19 +121,19 @@ You can choose one from openai API, mlx and llama.
 For OpenAI API,
 
 ```bash
-pip install openai
+uv pip install openai
 ```
 
 For MLX (only recommendated for Apple Silicon),
 
 ```bash
-pip install mlx-lm
+uv pip install mlx-lm
 ```
 
 For llama.cpp,
 
 ```bash
-pip install llama-cpp-python
+uv pip install llama-cpp-python
 ```
 
 ## Links
