@@ -6,8 +6,6 @@ import {
     Button,
     Typography,
     Divider,
-    Select,
-    MenuItem,
     Box,
 } from '@mui/material';
 
@@ -15,12 +13,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from "react-router";
 
 import type { LLMTaskInfo } from "~/models/task";
-import { type LanguageKey, Language } from '~/models/const';
+import { type LanguageKey } from '~/models/const';
 import type { LLMResponse } from "../models";
 import { pushMsg } from "~/components/error_popout";
-import { LLMSettingPage } from "~/routes/settings/llm_settings";
 import { NobarOverflow, ColumnWidth } from "~/components/frame";
+import { DestLangSelector } from "~/components/select";
 import { SettingItemFrame } from "~/routes/settings/components/frame";
+import { LLMSettingPage } from "~/routes/settings/llm_settings";
 import { submitTask, getOutputPath, getOriginalLanguage } from "./function";
 import InputPart from "../file_selector";
 
@@ -37,7 +36,7 @@ export default function InsertLLMTaskDialog({
     const navigate = useNavigate();
     const [inserting, setInserting] = useState(false);
     const [files, setFiles] = useState<LLMResponse[]>([]);
-    const [destLang, setDestLang] = useState<LanguageKey | undefined>(undefined);
+    const [destLang, setDestLang] = useState<LanguageKey | null>(null);
 
     useEffect(() => {
         if (retry_task) {
@@ -107,6 +106,7 @@ export default function InsertLLMTaskDialog({
                             files={files}
                             setFiles={setFiles}
                             onInsert={async (paths) => {
+                                if (typeof paths === "string") return;
                                 const newFiles = paths.map((path) => [path, getOriginalLanguage(path)] as LLMResponse);
                                 setFiles((prev) => [...prev, ...newFiles]);
                             }}
@@ -116,21 +116,10 @@ export default function InsertLLMTaskDialog({
                     <ColumnWidth width="63%">
                         <NobarOverflow>
                             <SettingItemFrame title="Translate Language">
-                                <Select
+                                <DestLangSelector
                                     value={destLang}
-                                    onChange={(e) => setDestLang(e.target.value as LanguageKey)}
-                                    displayEmpty
-                                    sx={{ width: 138, ml: 1 }}
-                                >
-                                    <MenuItem value={undefined}>N/A</MenuItem>
-                                    {Object.entries(Language)
-                                        .filter(([key]) => key !== "zh")
-                                        .map(([key, value]) => (
-                                            <MenuItem key={key} value={key}>
-                                                {value}
-                                            </MenuItem>
-                                        ))}
-                                </Select>
+                                    onChange={(value) => setDestLang(value)}
+                                />
                             </SettingItemFrame>
                             <LLMSettingPage embedded />
                         </NobarOverflow>

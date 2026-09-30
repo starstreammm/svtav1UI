@@ -7,7 +7,14 @@ export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
   server: {
     watch: {
-      ignored: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**", "**/cache/**"],
+      ignored: [
+        "**/node_modules/**",
+        "**/.git/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/cache/**",
+        "/api/**",
+      ],
     },
     port: 8889,
   },

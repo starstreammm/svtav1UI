@@ -18,13 +18,3 @@ dependencies = [
     "uvicorn>=0.54.0",
     "xgboost>=3.2.0",
 ]
-
-[project.scripts]
-svtav1ui = "svtav1ui:main"
-
-[build-system]
-requires = ["uv_build>=0.12.19,<0.13.0"]
-build-backend = "uv_build"
-
-[tool.uv]
-package = false

@@ -41,7 +41,39 @@ type RenameType = (typeof RenameType)[number];
 
 
 
-export default function BatchRenameDialog({ onClose, filesName }: {
+export function ResetDefaultNameDialog({ onClose }: { onClose: (reset: boolean) => void }) {
+    return (
+        <Dialog open onClose={() => onClose(false)}>
+            <DialogTitle>
+                Reset Default Name
+            </DialogTitle>
+            <Divider />
+            <DialogContent>
+                Are you sure you want to reset the default name for all files?<br />
+                This action cannot be undone.
+            </DialogContent>
+            <DialogActions>
+                <Box sx={{ display: "flex", justifyContent: "end", gap: 1 }}>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={() => onClose(false)}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        onClick={() => onClose(true)}
+                    >
+                        Reset
+                    </Button>
+                </Box>
+            </DialogActions>
+        </Dialog>
+    );
+}
+
+export function BatchRenameDialog({ onClose, filesName }: {
     onClose: () => void;
     filesName: () => [string, Dispatch<SetStateAction<string>>][];
 }) {

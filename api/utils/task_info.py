@@ -1,6 +1,7 @@
 import asyncio
 import shlex
 import json
+import threading
 from pypinyin import lazy_pinyin
 from natsort import natsorted
 from pathlib import Path
@@ -56,15 +57,8 @@ class TaskInfo:
         self.path = path
         self.info: VideoInfo | ImageInfoForTask
         self.args: VideoTranscodeArgs
-
-    @classmethod
-    async def run(cls, path: Path):
-        self = cls(path)
-        await self._fetch_file_info()
-        lg.debug(f"Fetch {self.type} {self.path} info: {self.info}")
-        self._fetch_transcode_args()
-
-        return self
+        self.proc: asyncio.subprocess.Process
+        self.worker = asyncio.create_task(self._worker())
 
     def response_task(self) -> VideoTaskSpwanResponse | ImageInfoForTask:
         if isinstance(self.info, VideoInfo):
@@ -78,6 +72,21 @@ class TaskInfo:
         else:
             return ImageInfo.model_validate(self.info.model_dump())
 
+    async def cancel(self):
+        self.worker.cancel()
+        try:
+            await self.worker
+        except asyncio.CancelledError:
+            pass
+
+    async def wait(self):
+        await self.worker
+
+    async def _worker(self):
+        await self._fetch_file_info()
+        lg.debug(f"Fetch {self.type} {self.path} info: {self.info}")
+        self._fetch_transcode_args()
+
     async def _fetch_file_info(self):
         # run command
         self.proc = await asyncio.create_subprocess_exec(
@@ -87,12 +96,17 @@ class TaskInfo:
         )
 
         # fetch data
-        stdout, stderr = await self.proc.communicate()
-        if self.proc.returncode != 0:
-            raise RuntimeError(f"ffprobe failed: {stderr.decode()}")
-        data = json.loads(stdout)["streams"]
-        video = next((s for s in data if s.get("codec_type") == "video"), {})
-        audio = next((s for s in data if s.get("codec_type") == "audio"), {})
+        try:
+            stdout, stderr = await self.proc.communicate()
+            if self.proc.returncode != 0:
+                raise RuntimeError(f"ffprobe failed: {stderr.decode()}")
+            data = json.loads(stdout)["streams"]
+            video = next((s for s in data if s.get("codec_type") == "video"), {})
+            audio = next((s for s in data if s.get("codec_type") == "audio"), {})
+        except asyncio.CancelledError:
+            self.proc.kill()
+            await self.proc.wait()
+            raise
 
         # Extract and validate information based on type
         if self.type == "video":
@@ -416,38 +430,66 @@ class BatchTaskInfo:
             ):
                 self.files.append(file)
 
-        self.files = natsorted(self.files, key=lambda x: lazy_pinyin(x.name))
+        self.res: list[VideoTaskSpwanResponse | ImageInfo] = []
+        self.worker = asyncio.to_thread(asyncio.run, self._entry())
+        self.cancel = threading.Event()
 
-    @classmethod
-    async def run(
-        cls,
-        path: Path,
-        type: Literal["video", "image"],
-    ) -> list[VideoTaskSpwanResponse | ImageInfo]:
-        self = cls(path, type)
+    async def wait(self):
+        try:
+            self.res = await self.worker
+        except asyncio.CancelledError:
+            self.cancel.set()
+            raise
+        return self.res
 
-        res = await asyncio.to_thread(
-            asyncio.run,
-            self._worker(),
-        )
-        return res
+    async def _entry(self):
+        task = asyncio.create_task(self._worker())
+
+        await asyncio.to_thread(self.cancel.wait)
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        return await task
 
     async def _worker(self):
-        _sem = asyncio.Semaphore(8)  # Limit concurrent ffprobe calls
+        _sem = asyncio.Semaphore(3)  # Limit concurrent ffprobe calls
+        workers: list[asyncio.Task] = []
+        results: list[VideoTaskSpwanResponse | ImageInfo] = []
 
         async def sem_task(file: Path):
-            async with _sem:
-                return await TaskInfo.run(file)
-
-        tasks = await asyncio.gather(
-            *[sem_task(file) for file in self.files],
-            return_exceptions=True,
-        )
-
-        results: list[VideoTaskSpwanResponse | ImageInfo] = []
-        for task in tasks:
-            if isinstance(task, BaseException):
-                lg.error(f"Error processing file: {task}")
-            else:
+            try:
+                task = TaskInfo(file)
+                await task.wait()
                 results.append(task.response_task())
-        return results
+            finally:
+                _sem.release()
+
+        try:
+            for file in self.files:
+                await _sem.acquire()
+                workers.append(asyncio.create_task(sem_task(file)))
+
+            await asyncio.gather(*workers, return_exceptions=True)
+
+        except asyncio.CancelledError:
+            for worker in workers:
+                worker.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+            raise
+
+        else:
+            return natsorted(
+                results,
+                key=lambda x: (
+                    lazy_pinyin(x.info.path.name)
+                    if isinstance(x, VideoTaskSpwanResponse)
+                    else lazy_pinyin(x.path.name)
+                ),
+            )
+
+        finally:
+            self.cancel.set()

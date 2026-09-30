@@ -9,7 +9,11 @@ const apiUrl = getLocalStorage("apiUrl", "local");
 
 export async function submitTask(task: VideoTaskInfo, priority: boolean) {
     try {
-        await api.post(`${apiUrl}/task/submit`, { json: task, searchParams: { priority: priority } });
+        await api.post(`${apiUrl}/task/submit`, {
+            json: task,
+            searchParams: { priority: priority },
+            timeout: 1 * 60 * 1000, // 1 minutes
+        });
     }
     catch (error) {
         pushError(error, "Submit task");
@@ -30,11 +34,12 @@ export async function fetchTaskInfo(path: string): Promise<VideoResponse> {
     }
 }
 
-export async function fetchBatchTaskInfo(path: string): Promise<VideoResponse[]> {
+export async function fetchBatchTaskInfo(path: string, abortController: AbortController): Promise<VideoResponse[]> {
     try {
         const res = await api.get(`${apiUrl}/task/spawn/batch`, {
             searchParams: { path, type: "video" },
             timeout: 18 * 60 * 1000, // 18 minutes
+            signal: abortController.signal,
         }).json<VideoResponse[]>();
         return res;
     }

@@ -9,10 +9,14 @@ class Timer:
         self.is_suspend = False
 
     def suspend(self):
+        if self.is_suspend:
+            return
         self.suspend_timer = datetime.now(timezone.utc)
         self.is_suspend = True
 
     def resume(self):
+        if not self.is_suspend:
+            return
         self.is_suspend = False
         self.suspend_total += datetime.now(timezone.utc) - self.suspend_timer
 

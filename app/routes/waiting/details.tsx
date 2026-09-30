@@ -15,7 +15,7 @@ export function ImageWaitingDetails({ task, extend }: { task: ImageWaiting; exte
                     <ImageInfoComponent
                         key={file.path}
                         image={file}
-                        index={index}
+                        index={task.input.length > 1 ? index + 1 : undefined}
                     />
                 ))}
             </GridColumn>
@@ -44,7 +44,7 @@ export function VideoWaitingDetails({ task, extend }: { task: VideoWaiting; exte
                     <VideoInfoComponent
                         key={index}
                         video={video}
-                        index={task.input.length > 1 ? index : undefined}
+                        index={task.input.length > 1 ? index + 1 : undefined}
                     />
                 ))}
             </GridColumn>

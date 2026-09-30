@@ -12,6 +12,7 @@ import {
     Switch,
     Divider,
 } from "@mui/material";
+import UndoRoundedIcon from '@mui/icons-material/UndoRounded';
 import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
 import DriveFileRenameOutlineRoundedIcon from '@mui/icons-material/DriveFileRenameOutlineRounded';
 
@@ -35,8 +36,8 @@ import { TaskInfoItemBase } from "~/components/task_info";
 import { pushMsg } from "~/components/error_popout";
 import PathSelector from "~/components/pathselector";
 import { NobarOverflow } from "~/components/frame";
-import { RotateSelector, OrgLangSelector, DestLangSelector } from "./components";
-import BatchRenameDialog from "../rename";
+import { RotateSelector, OrgLangSelector, DestLangSelector } from "../../components/select";
+import { BatchRenameDialog, ResetDefaultNameDialog } from "../rename";
 
 
 export function SingleOutput({ files, setFiles, settings, config, ref }: {
@@ -50,6 +51,7 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
     const [totalEta, setTotalEta] = useState(0);
     const outputRefs = useRef<Record<string, OutputItemRef | null>>({});
     const [batchRename, setBatchRename] = useState(false);
+    const [resetRename, setResetRename] = useState(false);
 
     useImperativeHandle(ref, () => () => {
         let result: Record<string, string> = {};
@@ -67,6 +69,26 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
         <Box sx={{ display: "flex", height: "100%", flexDirection: "column", gap: 3 }}>
             <OutputTitle path={output} setPath={setOutput} totalEta={totalEta} />
             <Box sx={{ display: "flex", justifyContent: "end" }}>
+                {resetRename &&
+                    <ResetDefaultNameDialog
+                        onClose={(reset) => {
+                            setResetRename(false);
+                            if (reset)
+                                Object.entries(outputRefs.current)
+                                    .forEach(([_, ref]) => ref?.reset());
+                        }}
+                    />
+                }
+                <Button
+                    size="small"
+                    variant="outlined"
+                    color="secondary"
+                    sx={{ my: -2, mr: 3 }}
+                    startIcon={<UndoRoundedIcon />}
+                    onClick={() => setResetRename(true)}
+                >
+                    Reset Default Name
+                </Button>
                 {batchRename &&
                     <BatchRenameDialog
                         onClose={() => setBatchRename(false)}
@@ -87,8 +109,8 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
                 }
                 <Button
                     size="small"
-                    variant="outlined"
-                    color="secondary"
+                    variant="contained"
+                    color="primary"
                     sx={{ my: -2 }}
                     startIcon={<DriveFileRenameOutlineRoundedIcon />}
                     onClick={() => setBatchRename(true)}
@@ -199,6 +221,7 @@ function OutputTitle({ path, setPath, totalEta }: {
 
 interface OutputItemRef {
     set: (newName: any) => void;
+    reset: () => void;
     get: () => string;
     getName: () => string;
 }
@@ -218,16 +241,16 @@ function OutputItem({ index, file, setArgs, settings, output, setTotalEta, onlyS
     const [edit, setEdit] = useState(false);
     const [eta, setEta] = useState(-1);
     const [name, setName] = useState("OutputVideo");
+    const defaultName = file.info.path
+        .slice(file.info.path.lastIndexOf("/") + 1)
+        .replace(/\.[^/.]+$/, "");
 
     useEffect(() => {
         getEta({ input: [file.info], output: "", args: file.args, settings } satisfies VideoTaskInfo)
             .then((newEta) => {
                 setTotalEta((prev) => prev + newEta - Math.max(0, eta));
                 setEta(newEta);
-            })
-        const defaultName = file.info.path
-            .slice(file.info.path.lastIndexOf("/") + 1)
-            .replace(/\.[^/.]+$/, "");
+            });
         setName(defaultName);
     }, []);
 
@@ -240,6 +263,9 @@ function OutputItem({ index, file, setArgs, settings, output, setTotalEta, onlyS
             }
             else
                 setName(newName);
+        },
+        reset: () => {
+            setName(defaultName);
         },
         get: () => {
             return `${output}${output.endsWith("/") ? "" : "/"}${name}.mp4`;

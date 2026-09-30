@@ -44,6 +44,7 @@ export default function VideoInsertTaskDialog({
 
     // state 
     const [inserting, setInserting] = useState(false);
+    const abortControllerRef = useRef<AbortController>(null);
     const outputRef = useRef<() => Record<string, string>>(null);
 
     useEffect(() => {
@@ -184,7 +185,8 @@ export default function VideoInsertTaskDialog({
                             setFiles={setFiles}
                             onInsert={async (paths) => {
                                 if (typeof paths === "string") {
-                                    const newFiles = await fetchBatchTaskInfo(paths);
+                                    abortControllerRef.current = new AbortController();
+                                    const newFiles = await fetchBatchTaskInfo(paths, abortControllerRef.current);
                                     setFiles((prev) => [...prev, ...newFiles]);
                                 }
                                 else {
@@ -197,6 +199,7 @@ export default function VideoInsertTaskDialog({
                                     ]);
                                 }
                             }}
+                            onAddNewCancel={() => abortControllerRef.current?.abort()}
                         />
                     </ColumnWidth>
                     <Divider orientation="vertical" />
@@ -231,7 +234,14 @@ export default function VideoInsertTaskDialog({
                 </Box>
             </DialogContent>
             <DialogActions sx={{ pb: 3, pr: 3, gap: 1 }}>
-                <Button onClick={onCancel} variant="outlined">
+                <Button
+                    variant="outlined"
+                    onClick={() => {
+                        abortControllerRef.current?.abort();
+                        onCancel();
+                    }}
+                    disabled={inserting}
+                >
                     Cancel
                 </Button>
                 <Button

@@ -9,9 +9,10 @@ import {
     Switch,
     Box,
 } from '@mui/material';
+import UndoRoundedIcon from '@mui/icons-material/UndoRounded';
 import DriveFileRenameOutlineRoundedIcon from '@mui/icons-material/DriveFileRenameOutlineRounded';
 
-import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from "react-router";
 
 import type { ImageInfo, ImageTaskInfo } from "~/models/task";
@@ -27,7 +28,8 @@ import { SettingSlider } from "~/routes/settings/components/slider";
 import { fetchTranscodeSettings } from "~/routes/settings/function";
 import { fetchTaskInfo, fetchBatchTaskInfo, submitTask } from "./function";
 import InputPart from "../file_selector";
-import BatchRenameDialog from "../rename";
+import { BatchRenameDialog, ResetDefaultNameDialog } from "../rename";
+import ImageRotateDialog from "./rotate";
 
 export default function VideoInsertTaskDialog({
     retry_task,
@@ -48,6 +50,10 @@ export default function VideoInsertTaskDialog({
     const [files, setFiles] = useState<ImageInfo[]>([]);
     const [eta, setEta] = useState<number>(-1);
     const [batchRename, setBatchRename] = useState(false);
+    const [resetRename, setResetRename] = useState(false);
+    const [rotate, setRotate] = useState(false);
+    const abortControllerRef = useRef<AbortController>(null);
+
 
     useEffect(() => {
         if (files.length === 0)
@@ -78,6 +84,7 @@ export default function VideoInsertTaskDialog({
 
     const onCommit = () => {
         setInserting(true);
+        abortControllerRef.current = new AbortController();
         submitTask(
             {
                 input: files,
@@ -86,6 +93,7 @@ export default function VideoInsertTaskDialog({
                 settings: settings,
             },
             config.priority,
+            abortControllerRef.current,
         ).then(() => {
             pushMsg(`Image task with ${files.length} images inserted successfully.`, "success");
             onClose();
@@ -127,7 +135,8 @@ export default function VideoInsertTaskDialog({
                             setFiles={setFiles}
                             onInsert={async (paths) => {
                                 if (typeof paths === "string") {
-                                    const result = await fetchBatchTaskInfo(paths);
+                                    abortControllerRef.current = new AbortController();
+                                    const result = await fetchBatchTaskInfo(paths, abortControllerRef.current);
                                     setFiles((prev) => [
                                         ...prev,
                                         ...result
@@ -146,6 +155,7 @@ export default function VideoInsertTaskDialog({
                                 }
 
                             }}
+                            onAddNewCancel={() => abortControllerRef.current?.abort()}
                         />
                     </ColumnWidth>
                     <Divider orientation="vertical" flexItem />
@@ -178,13 +188,37 @@ export default function VideoInsertTaskDialog({
                                 }
                                 <Button
                                     size="small"
-                                    variant="outlined"
-                                    color="secondary"
+                                    variant="contained"
+                                    color="primary"
                                     sx={{ my: -2 }}
                                     startIcon={<DriveFileRenameOutlineRoundedIcon />}
                                     onClick={() => setBatchRename(true)}
                                 >
                                     Batch Rename
+                                </Button>
+                                {resetRename &&
+                                    <ResetDefaultNameDialog
+                                        onClose={(reset) => {
+                                            setResetRename(false);
+                                            if (reset)
+                                                setFiles((prev) => prev.map((file) => ({
+                                                    ...file,
+                                                    output_name: file.path
+                                                        .slice(file.path.lastIndexOf("/") + 1)
+                                                        .replace(/\.[^/.]+$/, ""),
+                                                })));
+                                        }}
+                                    />
+                                }
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="secondary"
+                                    sx={{ my: -2, mr: 3 }}
+                                    startIcon={<UndoRoundedIcon />}
+                                    onClick={() => setResetRename(true)}
+                                >
+                                    Reset Default Name
                                 </Button>
                             </Box>
                             <PathSelector
@@ -236,12 +270,33 @@ export default function VideoInsertTaskDialog({
                                     field
                                 />
                             </SettingItemFrame>
+                            {rotate &&
+                                <ImageRotateDialog
+                                    images={files}
+                                    setImages={setFiles}
+                                    onClose={() => setRotate(false)}
+                                />
+                            }
+                            <SettingItemFrame title="Rotate" desc="Rotate the image.">
+                                <Button
+                                    variant="contained"
+                                    onClick={() => setRotate(true)}
+                                >
+                                    Open Rotate Dialog
+                                </Button>
+                            </SettingItemFrame>
                         </NobarOverflow>
                     </ColumnWidth>
                 </Box>
             </DialogContent>
             <DialogActions sx={{ pb: 3, pr: 3, gap: 1 }}>
-                <Button onClick={onCancel} variant="outlined">
+                <Button
+                    variant="outlined"
+                    onClick={() => {
+                        abortControllerRef.current?.abort();
+                        onCancel();
+                    }}
+                >
                     Cancel
                 </Button>
                 <Button

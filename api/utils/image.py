@@ -39,6 +39,8 @@ class Image:
         self.progress.pending = deepcopy(task.input)
 
         self.worker: asyncio.Task = asyncio.create_task(self._worker())
+        self.start_next = asyncio.Event()
+        self.start_next.set()
         self.workers: list[_ImageWorker] = []
         self.callbacks: list[asyncio.Task] = []
 
@@ -48,6 +50,7 @@ class Image:
 
     def resume(self):
         self.timer.resume()
+        self.start_next.set()
         for worker in self.workers:
             worker.resume()
 
@@ -55,6 +58,11 @@ class Image:
         self.timer.suspend()
         for worker in self.workers:
             worker.pause()
+
+    async def pause_start_next(self):
+        self.start_next.clear()
+        for worker in self.workers:
+            await worker.wait()
 
     async def cancel(self, sig: str):
         self.worker.cancel(sig)
@@ -67,7 +75,14 @@ class Image:
         try:
             # run command for each file
             while self.progress.pending:
+                # Start next task check
                 await self.semaphore.acquire()
+                if not self.start_next.is_set():
+                    self.semaphore.release()
+                    self.timer.suspend()
+                    await self.start_next.wait()
+                    continue
+
                 file = self.progress.pending.pop(0)
                 self.progress.running.append(
                     ImageRunningItem.model_validate(file.model_dump())
@@ -125,7 +140,8 @@ class Image:
                 )
             )
         else:
-            output_info = await TaskInfo.run(task.output)
+            output_info = TaskInfo(task.output)
+            await output_info.wait()  # Wait for ffprobe to finish
             self.progress.completed.append(
                 ImageCompletedItem(
                     input=task.file,
@@ -277,6 +293,17 @@ class _ImageWorker:
             filters.append(self.file.sar_fix)
         elif self.file.width % 2 != 0 or self.file.height % 2 != 0:
             filters.append("pad=ceil(iw/2)*2:ceil(ih/2)*2")
+
+        # rotate
+        if self.file.rotate:
+            if self.file.rotate in range(0, 4):
+                filters.append(f"transpose={self.file.rotate}")
+            elif self.file.rotate == 4:
+                filters.append("hflip")
+            elif self.file.rotate == 5:
+                filters.append("hflip,transpose=2,transpose=2")
+            elif self.file.rotate == 6:
+                filters.append("transpose=2,transpose=2")
 
         # default filter
         filters.append("setsar=1")

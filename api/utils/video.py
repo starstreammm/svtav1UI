@@ -114,12 +114,12 @@ class Video:
         except asyncio.CancelledError as e:
             if not str(e) == "task":
                 self._onFailed()
-            raise e
+            raise
 
         except Exception as e:
             lg.error(f"Video task failed: {e}")
             self._onFailed(str(e))
-            raise e
+            raise
 
         else:
             await self._onSuccess()
@@ -135,7 +135,8 @@ class Video:
                     lg.error(f"Failed to delete {f.path.resolve()}: {e}")
 
         if self.transcode is not None:
-            output_info = (await TaskInfo.run(self.task.output)).response_info()
+            output_info = TaskInfo(self.task.output)
+            await output_info.wait()
 
             db.execute(
                 """
@@ -144,7 +145,7 @@ class Video:
                     VALUES ('video', ?, ?, ?, ?, ?);
                 """,
                 json.dumps([f.model_dump(mode="json") for f in self.task.input]),
-                output_info.model_dump_json(),
+                output_info.response_info().model_dump_json(),
                 self.task.args.model_dump_json(),
                 str(self.timer.total()).split(".")[0],
                 datetime.now(timezone.utc).isoformat(),
@@ -264,10 +265,10 @@ class Transcode:
             await self.monitor.wait()
         except asyncio.CancelledError as e:
             await self.cancel(str(e))
-            raise e
+            raise
         except Exception as e:
             self.task.output.unlink(missing_ok=True)
-            raise e
+            raise
 
     def _filter(self) -> list[str]:
         filters = []

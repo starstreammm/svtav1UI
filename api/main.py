@@ -1,127 +1,79 @@
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=38889,
-        loop="asyncio",
-    )
+# import signal
+# import faulthandler
+#
+# faulthandler.register(signal.SIGUSR1)
 
 
+import uvicorn
+import asyncio
 import logging
-import traceback
-import shutil
-from pathlib import Path
-
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from fastapi.concurrency import asynccontextmanager
-
-from utils.database import Database
 from utils.logger import LoggerBase as lg
-from utils.eta import ETA
-from utils.queue import Queue
-
-from routes.task import task_router
-from routes.path import path_router
-from routes.settings import settings_router, SettingsManager
-from routes.plan import plan_router
 
 
-class IgnoreHealthFilter(logging.Filter):
+class IgnoreCancelledErrorFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        # msg = record.getMessage()
+        if record.exc_info:
+            exc_type, _, _ = record.exc_info
 
-        # if "/plan/status" in msg and "POST" in msg:
-        #    return True
+            if exc_type is asyncio.CancelledError:
+                return False
 
-        return False
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Check ffmpeg
-    print("[1/6] Checking ffmpeg...")
-    if not shutil.which("ffmpeg"):
-        raise FileNotFoundError("ffmpeg not found in PATH. Please install ffmpeg.")
-
-    # Initialize Components
-    print("[2/6] Initializing Logger...")
-    lg.init()
-    logger = logging.getLogger("uvicorn.access")
-    logger.addFilter(IgnoreHealthFilter())
-    print("[3/6] Initializing Database...")
-    Database.init()
-    print("[4/6] Loading Configuration...")
-    await SettingsManager.init()
-    print("[5/6] Training ETA Model...")
-    ETA.init()
-
-    # Create a task queue for processing tasks
-    print("[6/6] Initializing Task Queue...")
-    app.state.queue = Queue()
-    lg.info(
-        "All components initialized successfully. Server is ready to accept requests.\n"
-    )
-
-    yield
-    print("Shutting down server...")
-    # Cancel the task queue and wait for it to finish
-    print("[1/3] Waiting the task loop to exist...")
-    await app.state.queue.cancel("system")
-    print("[2/3] Saving configuration...")
-    await SettingsManager.close()
-    print("[3/3] Closing database...")
-    Database.close()
-    shutil.rmtree(Path(__file__).parent / "cache" / "temp", ignore_errors=True)
-    lg.debug("Server shutdown complete.\n\n\n")
+        return True
 
 
-app = FastAPI(lifespan=lifespan)
+class ImmediateCancelServer(uvicorn.Server):
+    def __init__(self, config):
+        super().__init__(config)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+        # Ignore asyncio.CancelledError logs
+        logging.getLogger("uvicorn.error").addFilter(IgnoreCancelledErrorFilter())
+
+    async def shutdown(self, sockets=None):
+        lg.info("Connection shutdown initiated...")
+
+        # Stop accepting new connections
+        lg.info("Stop receiving new connections...")
+        for server in self.servers:
+            server.close()
+        for sock in sockets or []:
+            sock.close()  # pragma: full coverage
+
+        # Immediately cancel running ASGI tasks
+        tasks = list(self.server_state.tasks)
+        lg.info(f"Canceling {len(tasks)} running ASGI task(s)...")
+
+        for task in tasks:
+            task.cancel(msg="system")
+
+        # Wait for their cancellation cleanup
+        if tasks:
+            await asyncio.gather(
+                *tasks,
+                return_exceptions=True,
+            )
+
+        # Request shutdown on all existing connections.
+        lg.info("Closing all connections...")
+        for connection in list(self.server_state.connections):
+            connection.shutdown()
+
+        for server in self.servers:
+            await server.wait_closed()
+
+        # Send the lifespan shutdown event, and wait for application shutdown.
+        if not self.force_exit:
+            await self.lifespan.shutdown()
+
+
+config = uvicorn.Config(
+    "app:app",
+    host="0.0.0.0",
+    port=38889,
+    loop="asyncio",
 )
+server = ImmediateCancelServer(config)
 
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: Exception):
-    lg.error(f"Validation error: {exc}")
-    return JSONResponse(
-        status_code=422,
-        content={
-            "code": "VALIDATION_ERROR",
-            "detail": str(exc),
-        },
-    )
-
-
-@app.exception_handler(Exception)
-async def all_exception_handler(request: Request, exc: Exception):
-    lg.exception(f"Internal error: {exc}")
-    traceback.print_exc()
-    return JSONResponse(
-        status_code=500,
-        content={
-            "code": "INTERNAL_ERROR",
-            "detail": str(exc),
-        },
-    )
-
-
-app.include_router(path_router)
-app.include_router(task_router)
-app.include_router(settings_router)
-app.include_router(plan_router)
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+try:
+    server.run()
+except (KeyboardInterrupt, asyncio.CancelledError):
+    pass

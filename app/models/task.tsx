@@ -16,6 +16,7 @@ export interface ImageInfo {
     color_transfer: string;
     color_primaries: string;
     zscale: string;
+    rotate: number | null;
 }
 
 export interface ImageETAInfo {

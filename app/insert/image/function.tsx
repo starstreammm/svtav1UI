@@ -6,9 +6,18 @@ import { pushError } from "~/components/error_popout";
 const apiUrl = getLocalStorage("apiUrl", "local");
 
 
-export async function submitTask(task: ImageTaskInfo, priority: boolean) {
+export async function submitTask(
+    task: ImageTaskInfo,
+    priority: boolean,
+    abortController: AbortController
+) {
     try {
-        await api.post(`${apiUrl}/task/submit`, { json: task, searchParams: { priority: priority } });
+        await api.post(`${apiUrl}/task/submit`, {
+            json: task,
+            searchParams: { priority: priority },
+            timeout: 3 * 60 * 1000, // 3 minutes
+            signal: abortController.signal,
+        });
     }
     catch (error) {
         pushError(error, "Submit task");
@@ -30,11 +39,12 @@ export async function fetchTaskInfo(path: string): Promise<ImageInfo> {
     }
 }
 
-export async function fetchBatchTaskInfo(path: string): Promise<ImageInfo[]> {
+export async function fetchBatchTaskInfo(path: string, abortController: AbortController): Promise<ImageInfo[]> {
     try {
         const res = await api.get(`${apiUrl}/task/spawn/batch`, {
             searchParams: { path, type: "image" },
             timeout: 18 * 60 * 1000, // 18 minutes
+            signal: abortController.signal,
         }).json<ImageInfo[]>();
         return res;
     }

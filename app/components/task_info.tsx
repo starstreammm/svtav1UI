@@ -70,7 +70,7 @@ export function VideoArgsComponent({ size, task }: {
             ["Pixel Format", task.pix_fmt],
             ["SAR Fix", task.sar_fix === "" ? "N/A" : task.sar_fix],
             ["Zscale", task.zscale],
-            ["Rotate", task.rotate ? Rotate[task.rotate] : "None"],
+            ["Rotate", task.rotate ? Rotate[task.rotate] : "N/A"],
         ]} />
     );
 }
@@ -111,6 +111,10 @@ export function ImageInfoComponent({ image, index, hideOutput }: {
                 ...(hideOutput
                     ? []
                     : [["Zscale", image.zscale] as [string, string]]
+                ),
+                ...(hideOutput
+                    ? []
+                    : [["Rotate", image.rotate ? Rotate[image.rotate] : "N/A"] as [string, string]]
                 ),
             ]} />
         </>

@@ -24,6 +24,7 @@ class ImageInfoForTask(ImageInfo):
     sar_fix: str
     output_pix_fmt: str
     zscale: str
+    rotate: Optional[int] = Field(default=None, ge=0, le=6)
 
 
 class ImageETAInfo(BaseModel):

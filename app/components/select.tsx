@@ -2,18 +2,20 @@ import { Select, MenuItem } from "@mui/material";
 import { Language, Rotate, type LanguageKey } from "~/models/const";
 
 
-export function RotateSelector({ value, onChange }: {
-    value: number | null;
+export function RotateSelector({ value, onChange, small }: {
+    value?: number | null;
     onChange: (value: number | null) => void;
+    small?: boolean;
 }) {
     return (
         <Select
-            value={value ?? "null"}
+            value={value === null ? "null" : value}
             onChange={(e) => {
                 onChange(e.target.value === "null" ? null : Number(e.target.value));
             }}
             sx={{ width: 188 }}
             displayEmpty
+            size={small ? "small" : "medium"}
         >
             <MenuItem value="null">None</MenuItem>
             {Rotate.map((option, index) => (
@@ -54,7 +56,7 @@ export function OrgLangSelector({ value, onChange }: {
 
 
 export function DestLangSelector({ org, value, onChange }: {
-    org: LanguageKey | null | undefined;
+    org?: LanguageKey | null | undefined;
     value: LanguageKey | null | undefined;
     onChange: (value: LanguageKey | null) => void;
 }) {

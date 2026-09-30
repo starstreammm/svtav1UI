@@ -10,10 +10,12 @@ import {
     DialogActions,
     CircularProgress,
     type CircularProgressProps,
+    Tooltip,
 } from '@mui/material';
 import PauseCircleOutlineRoundedIcon from '@mui/icons-material/PauseCircleOutlineRounded';
 import PlayCircleOutlineRoundedIcon from '@mui/icons-material/PlayCircleOutlineRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import AirlineStopsRoundedIcon from '@mui/icons-material/AirlineStopsRounded';
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -157,22 +159,36 @@ function CircularProgressWithLabel(props: CircularProgressProps & { value: numbe
 
 
 export function TaskControl({ title, llm = false }: { title: string; llm?: boolean }) {
-    const [pause, setPause] = useState(false);
+    const [running, setRunning] = useState(true);
     const [openCancel, setOpenCancel] = useState(false);
+    const [openPauseNext, setOpenPauseNext] = useState(false);
 
     const fetch = () => {
         api.get(`${apiUrl}/task/running/pause`).json<boolean>()
-            .then((is_set) => setPause(!is_set))
+            .then((is_set) => setRunning(is_set))
             .catch((error) => pushError(error, "Get Pause/Resume Status"));
     }
 
     const submit = () => {
-        api.post(`${apiUrl}/task/running/pause`, { searchParams: { set: pause } }).json<boolean>()
+        api.post(`${apiUrl}/task/running/pause`, { searchParams: { set: !running } }).json<boolean>()
             .then((is_set) => {
-                setPause(!is_set);
+                setRunning(is_set);
                 pushMsg(`Task ${!is_set ? "paused" : "resumed"} successfully.`, "success");
             })
             .catch((error) => pushError(error, "Set Pause/Resume Status"));
+    }
+
+    const pauseStartNext = () => {
+        setOpenPauseNext(true);
+        api.post(`${apiUrl}/task/running/pause/start_next`, {
+            timeout: 13 * 60 * 1000, // 13 minutes
+        }).json<boolean>()
+            .then((is_set) => {
+                setRunning(is_set);
+                setOpenPauseNext(false);
+                pushMsg(`Task paused successfully.`, "success");
+            })
+            .catch((error) => pushError(error, "Pause and Start Next Task"));
     }
 
     useEffect(() => { fetch() }, []);
@@ -193,15 +209,51 @@ export function TaskControl({ title, llm = false }: { title: string; llm?: boole
                 alignItems: "center",
                 gap: 3,
             }}>
+                {title.includes("Image") && running &&
+                    <Tooltip
+                        title="Pause the task when all the running items are completed. 
+                               Do not initialise new running items."
+                        placement="bottom"
+                        arrow
+                    >
+                        <Button
+                            disabled={llm}
+                            variant='outlined'
+                            color='primary'
+                            startIcon={<AirlineStopsRoundedIcon />}
+                            onClick={pauseStartNext}
+                            onMouseEnter={fetch}
+                        >
+                            Task Pause
+                        </Button>
+                    </Tooltip>
+                }
+                {title.includes("Image") && openPauseNext &&
+                    <Dialog open fullWidth>
+                        <DialogContent sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            gap: 8,
+                            py: 13,
+                        }}>
+                            <CircularProgress enableTrackSlot size={88} />
+                            <Typography>
+                                Waiting for the current running task to finish before pausing...
+                            </Typography>
+                        </DialogContent>
+                    </Dialog>
+                }
                 <Button
                     disabled={llm}
-                    color={pause ? "info" : "primary"}
-                    variant={pause ? 'contained' : 'outlined'}
-                    startIcon={pause ? <PlayCircleOutlineRoundedIcon /> : <PauseCircleOutlineRoundedIcon />}
+                    color={running ? "primary" : "info"}
+                    variant={running ? 'outlined' : 'contained'}
+                    startIcon={running ? <PauseCircleOutlineRoundedIcon /> : <PlayCircleOutlineRoundedIcon />}
                     onClick={submit}
                     onMouseEnter={fetch}
                 >
-                    {pause ? "Resume" : "Pause"}
+                    {running ? "Pause" : "Resume"}
                 </Button>
                 <Button
                     disabled={llm}

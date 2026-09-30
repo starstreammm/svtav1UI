@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from fastapi import APIRouter, Query, Request
@@ -8,6 +9,7 @@ from utils import insert_waiting, fetch_ApiWaiting, fetch_task
 from utils.database import Database as db
 from utils.logger import LoggerBase as lg
 from utils.task_info import TaskInfo, BatchTaskInfo, VideoTaskSpwanResponse
+from utils.image import Image
 from utils.llm import LLM
 
 task_router = APIRouter(prefix="/task", tags=["task"])
@@ -23,7 +25,8 @@ async def spawn_task(
     if not path.is_file():
         raise FileNotFoundError(f"File {path} does not exist.")
 
-    task = await TaskInfo.run(path)
+    task = TaskInfo(path)
+    await task.wait()
     return task.response_task()
 
 
@@ -32,6 +35,7 @@ async def spawn_task(
     response_model=list[VideoTaskSpwanResponse] | list[ImageInfoForTask],
 )
 async def spawn_batch_task(
+    r: Request,
     path: Path = Query(
         ..., description="The dir path of the videos or images to spawn a task for"
     ),
@@ -42,9 +46,23 @@ async def spawn_batch_task(
     """
     Spawn a batch transcoding task for multiple videos or images.
     """
+    info = BatchTaskInfo(path, type)
+    task = asyncio.create_task(info.wait())
+    while not task.done():
+        try:
+            if await r.is_disconnected():
+                raise asyncio.CancelledError("Client disconnected")
 
-    task = await BatchTaskInfo.run(path, type)
-    return task
+            await asyncio.sleep(1.3)
+
+        except asyncio.CancelledError:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            raise
+    return info.res
 
 
 @task_router.post("/spwan/multi", response_model=VideoTranscodeArgs)
@@ -120,6 +138,16 @@ async def pause_transcoding(
         r.app.state.queue.pause_running()
 
     return r.app.state.queue.is_running
+
+
+@task_router.post("/running/pause/start_next", response_model=bool)
+async def pause_start_next(r: Request):
+    if isinstance(r.app.state.queue.running, Image):
+        await r.app.state.queue.running.pause_start_next()
+        r.app.state.queue.is_running = False
+        return False
+    else:
+        raise ValueError("Pause start next is only supported for Image tasks.")
 
 
 # Waiting

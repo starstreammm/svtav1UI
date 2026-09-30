@@ -13,6 +13,7 @@ import {
     Tooltip,
     IconButton,
 } from "@mui/material";
+import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import BlurOnRoundedIcon from '@mui/icons-material/BlurOnRounded';
@@ -42,6 +43,7 @@ type FileSelectorProps =
         files: ImageInfo[];
         setFiles: Dispatch<SetStateAction<ImageInfo[]>>;
         onInsert: (path: string | string[]) => Promise<void>;
+        onAddNewCancel?: () => void;
     }
     | {
         type: "video";
@@ -51,6 +53,7 @@ type FileSelectorProps =
         files: VideoResponse[];
         setFiles: Dispatch<SetStateAction<VideoResponse[]>>;
         onInsert: (path: string | string[]) => Promise<void>;
+        onAddNewCancel?: () => void;
     }
     | {
         type: "llm";
@@ -137,6 +140,7 @@ export default function FileSelector(props: FileSelectorProps) {
                 <FileSelectorAddNew
                     onOpen={() => setExtend(null)}
                     onInsert={props.onInsert}
+                    onCancel={props.type !== "llm" ? props.onAddNewCancel : undefined}
                     filter={props.type === "llm" ? "subtitle" : props.type}
                 />
             </NobarOverflow>
@@ -305,9 +309,10 @@ function FileSelectorItem(props: FileSelectorItemProps) {
 }
 
 
-export function FileSelectorAddNew({ onOpen, onInsert, filter }: {
+export function FileSelectorAddNew({ onOpen, onInsert, onCancel, filter }: {
     onOpen?: () => void;
     onInsert: (path: string | string[]) => Promise<void>;
+    onCancel?: () => void;
     filter: "video" | "image" | "subtitle";
 }) {
     const [open, setOpen] = useState(false);
@@ -393,6 +398,18 @@ export function FileSelectorAddNew({ onOpen, onInsert, filter }: {
                     <CircularProgress size="26px" />
                 </ListItemIcon>
                 <ListItemText primary={msg} />
+                {onCancel &&
+                    <Tooltip title="Cancel inserting" placement="bottom" arrow>
+                        <ListItemIcon>
+                            <IconButton onClick={() => {
+                                setInserting(false);
+                                onCancel();
+                            }}>
+                                <CancelRoundedIcon color="error" />
+                            </IconButton>
+                        </ListItemIcon>
+                    </Tooltip>
+                }
             </ListItem>
         );
     }

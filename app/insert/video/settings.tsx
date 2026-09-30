@@ -19,9 +19,9 @@ import type { VideoResponse, VideoInsertConfig } from "../models";
 
 import { SettingItemFrame } from "~/routes/settings/components/frame";
 import { SettingSlider } from "~/routes/settings/components/slider";
-import { NobarOverflow } from "~/components/frame";
 import { checkLLM, fetchTranscodeSettings } from "~/routes/settings/function";
-import { RotateSelector, OrgLangSelector, DestLangSelector } from "./components";
+import { NobarOverflow } from "~/components/frame";
+import { RotateSelector, OrgLangSelector, DestLangSelector } from "~/components/select";
 
 const silderWidth = 188;
 
