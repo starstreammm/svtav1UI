@@ -83,7 +83,7 @@ export default function SettingsPanel({ settings, setSettings, setFiles, config,
                     </SettingItemFrame>
                     <SettingItemFrame title="Rotate" desc="Rotate the video by the specified degrees.">
                         <RotateSelector
-                            value={config.rotate}
+                            value={config.rotate ?? null}
                             onChange={(value) => {
                                 setFiles((prev) => prev.map((file) => {
                                     if ((file.args.rotate ?? null) !== (config.rotate ?? null))

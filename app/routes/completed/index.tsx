@@ -14,6 +14,7 @@ import { Language } from '~/models/const';
 import type { ApiCompleted } from "~/models/completed";
 import { NoContent } from '~/components/no_content';
 import { TableListContainer } from '~/components/frame';
+import { formatBytes } from '~/components/task_info';
 import { fetchCompletedList } from "./function";
 import ClearConfirmDialog from "./dialog";
 import { ImageCompletedDetails, VideoCompletedDetails, LLMCompletedDetails } from "./details";
@@ -68,7 +69,7 @@ export default function Completed() {
                                         : task.type === "whisper"
                                             ? task.input.map((file) => file.split("/").pop()).join(", ")
                                             : task.type === "image" && task.input.length > 3
-                                                ? `${task.input.length} image(s)`
+                                                ? `${task.input.length} images (${formatBytes(task.input.reduce((acc, file) => acc + file.size, 0))})`
                                                 : task.input.map((file) => file.path.split("/").pop()).join(", ")
                                     }
                                 </TableCell>

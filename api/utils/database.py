@@ -1,6 +1,8 @@
 import sqlite3
 from models import *
 
+SORT_INCREMENT = 512
+
 DB_PATH = DATA_PATH / "config.db"
 
 TABLES = {
@@ -88,11 +90,11 @@ class Database:
 
         # Rerank waiting tasks based on sort value
         cls.execute(
-            """
+            f"""
                 WITH ranked AS (
                     SELECT
                         uid,
-                        ROW_NUMBER() OVER (ORDER BY sort, uid) * 1000 AS new_sort
+                        ROW_NUMBER() OVER (ORDER BY sort, uid) * {SORT_INCREMENT} + 3000 AS new_sort
                     FROM waiting
                 )
                 UPDATE waiting

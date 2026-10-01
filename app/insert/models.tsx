@@ -18,6 +18,7 @@ export interface VideoInsertConfig {
 export interface VideoResponse {
     info: VideoInfo;
     args: VideoTranscodeArgs;
+    eta?: number;
 }
 
 export interface ImageInsertConfig {

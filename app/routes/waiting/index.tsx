@@ -26,6 +26,7 @@ import { NoContent } from "~/components/no_content";
 import { TableListContainer } from "~/components/frame";
 import { ImageWaitingDetails, VideoWaitingDetails } from "./details";
 import { deleteWaitingItem, fetchWaitingList, resortWaitingItem, type ApiSort, throttle } from "./function";
+import { formatBytes } from '~/components/task_info';
 
 
 
@@ -159,9 +160,9 @@ function SortableWaitingItem({ task, index, onClick, onRefresh, onMoveTop, onDel
         <TableRow ref={ref} hover onClick={onClick}>
             <TableCell align='center' className="no-wrap">{task.uid}</TableCell>
             <TableCell className="col-1">
-                {task.type === "video"
+                {task.type === "video" || task.input.length < 3
                     ? task.input.map((file) => file.path.split("/").pop()).join(", ")
-                    : `${task.input.length} images`
+                    : `${task.input.length} images (${formatBytes(task.input.reduce((acc, file) => acc + file.size, 0))})`
                 }
             </TableCell>
             <TableCell className="col-2">{task.output}</TableCell>

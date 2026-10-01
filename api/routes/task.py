@@ -6,7 +6,7 @@ from datetime import datetime
 
 from models import *
 from utils import insert_waiting, fetch_ApiWaiting, fetch_task
-from utils.database import Database as db
+from utils.database import SORT_INCREMENT, Database as db
 from utils.logger import LoggerBase as lg
 from utils.task_info import TaskInfo, BatchTaskInfo, VideoTaskSpwanResponse
 from utils.image import Image
@@ -185,7 +185,9 @@ async def sort_waiting(data: ApiSort):
     if data.next:
         next = (db.fetchone("SELECT sort FROM waiting WHERE uid=?;", data.next))[0]
     else:
-        next = ((db.fetchone("SELECT MAX(sort) FROM waiting;"))[0] or 0) + 2000
+        next = (
+            (db.fetchone("SELECT MAX(sort) FROM waiting;"))[0] or 0
+        ) + SORT_INCREMENT
 
     db.execute(
         """

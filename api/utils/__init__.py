@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic_core import ValidationError
 
 from utils.eta import ETA
-from utils.database import Database as db
+from utils.database import SORT_INCREMENT, Database as db
 from models import (
     VideoTaskInfo,
     ImageTaskInfo,
@@ -71,9 +71,12 @@ def insert_waiting(
         getattr(task, "sort")
         if hasattr(task, "sort")
         else (
-            (((db.fetchone("SELECT MIN(sort) FROM waiting;"))[0] or 0) - 1000)
+            ((db.fetchone("SELECT MIN(sort) FROM waiting;"))[0] or 0) / 2
             if priority
-            else (((db.fetchone("SELECT MAX(sort) FROM waiting;"))[0] or 0) + 1000)
+            else (
+                ((db.fetchone("SELECT MAX(sort) FROM waiting;"))[0] or 0)
+                + SORT_INCREMENT
+            )
         )
     )
 

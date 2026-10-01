@@ -27,7 +27,7 @@ import {
 } from "react";
 
 import type { TranscodeSettings } from "~/models/settings";
-import type { VideoTaskInfo, VideoTranscodeArgs } from "~/models/task";
+import type { VideoTranscodeArgs } from "~/models/task";
 import type { VideoResponse, VideoInsertConfig } from "../models";
 import { Rotate, Language } from "~/models/const";
 import { EtaText, getEta } from "~/hooks/eta";
@@ -48,10 +48,70 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
     ref: ForwardedRef<() => Record<string, string>>;
 }) {
     const [output, setOutput] = useLocalStorage("outputPath", "local", "local");
-    const [totalEta, setTotalEta] = useState(0);
     const outputRefs = useRef<Record<string, OutputItemRef | null>>({});
     const [batchRename, setBatchRename] = useState(false);
     const [resetRename, setResetRename] = useState(false);
+
+
+    useEffect(() => {
+        Promise.allSettled(files
+            .map((task) => {
+                if (task.eta === undefined)
+                    return getEta({
+                        input: [task.info],
+                        output: "",
+                        args: task.args,
+                        settings,
+                    });
+                else
+                    return Promise.resolve(task.eta);
+            })
+        ).then((results) => {
+            let changed = false;
+
+            const newFiles = files.map((file, index) => {
+                if (results[index].status === "fulfilled"
+                    &&
+                    file.eta !== results[index].value
+                ) {
+                    changed = true;
+                    return {
+                        ...file,
+                        eta: results[index].value,
+                    };
+                }
+                else
+                    return file;
+            })
+
+            if (changed)
+                setFiles(newFiles);
+        })
+    }, [files]);
+
+
+    useEffect(() => {
+        Promise.allSettled(files.map((task) => {
+            return getEta({
+                input: [task.info],
+                output: "",
+                args: task.args,
+                settings,
+            });
+        })).then((results) => {
+            setFiles((prev) => prev.map((file, index) => {
+                if (results[index].status === "fulfilled") {
+                    return {
+                        ...file,
+                        eta: results[index].value
+                    };
+                }
+                else
+                    return file;
+            }))
+        });
+    }, [settings]);
+
 
     useImperativeHandle(ref, () => () => {
         let result: Record<string, string> = {};
@@ -67,7 +127,7 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
 
     return (
         <Box sx={{ display: "flex", height: "100%", flexDirection: "column", gap: 3 }}>
-            <OutputTitle path={output} setPath={setOutput} totalEta={totalEta} />
+            <OutputTitle path={output} setPath={setOutput} totalEta={files.reduce((acc, file) => acc + (file.eta ?? 0), 0)} />
             <Box sx={{ display: "flex", justifyContent: "end" }}>
                 {resetRename &&
                     <ResetDefaultNameDialog
@@ -141,7 +201,7 @@ export function SingleOutput({ files, setFiles, settings, config, ref }: {
                             }}
                             settings={settings}
                             output={output}
-                            setTotalEta={setTotalEta}
+                            eta={file.eta ?? -1}
                             onlySubtitle={config.only_subtitle}
                             ref={(ref) => (outputRefs.current[file.info.path] = ref)}
                         />
@@ -173,8 +233,12 @@ export function MultiOutput({ files, args, setArgs, settings, ref }: {
     });
 
     useEffect(() => {
-        getEta({ input: files.map(f => f.info), output: "", args: args, settings } satisfies VideoTaskInfo)
-            .then((newEta) => setEta(newEta));
+        getEta({
+            input: files.map(f => f.info),
+            output: "",
+            args: args,
+            settings,
+        }).then((newEta) => setEta(newEta));
     }, []);
 
     return (
@@ -187,7 +251,7 @@ export function MultiOutput({ files, args, setArgs, settings, ref }: {
                 settings={settings}
                 output={output}
                 onlySubtitle={false}
-                setTotalEta={() => { }}
+                eta={eta}
                 ref={outputRef}
             />
         </Box>
@@ -227,32 +291,24 @@ interface OutputItemRef {
 }
 
 
-function OutputItem({ index, file, setArgs, settings, output, setTotalEta, onlySubtitle, ref }: {
+function OutputItem({ index, file, setArgs, settings, output, eta, onlySubtitle, ref }: {
     index: number;
     file: VideoResponse;
     setArgs: Dispatch<SetStateAction<VideoTranscodeArgs>>;
     settings: TranscodeSettings;
     output: string;
-    setTotalEta: Dispatch<SetStateAction<number>>;
+    eta: number;
     onlySubtitle: boolean;
     ref: ForwardedRef<OutputItemRef>;
 }) {
-    const [rename, setRename] = useState(false);
-    const [edit, setEdit] = useState(false);
-    const [eta, setEta] = useState(-1);
-    const [name, setName] = useState("OutputVideo");
     const defaultName = file.info.path
         .slice(file.info.path.lastIndexOf("/") + 1)
         .replace(/\.[^/.]+$/, "");
 
-    useEffect(() => {
-        getEta({ input: [file.info], output: "", args: file.args, settings } satisfies VideoTaskInfo)
-            .then((newEta) => {
-                setTotalEta((prev) => prev + newEta - Math.max(0, eta));
-                setEta(newEta);
-            });
-        setName(defaultName);
-    }, []);
+    const [rename, setRename] = useState(false);
+    const [edit, setEdit] = useState(false);
+    const [name, setName] = useState(defaultName);
+
 
     useImperativeHandle(ref, () => ({
         set: (newName) => {

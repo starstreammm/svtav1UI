@@ -58,6 +58,7 @@ export default function RotateImageDialog({ onClose, images, setImages }: {
                                             onChange={(value) => {
                                                 setRotates(rotates.map(([_, checked]) => [value, checked]));
                                             }}
+                                            small
                                         />
                                         : "Rotate"
                                     }
@@ -92,6 +93,7 @@ export default function RotateImageDialog({ onClose, images, setImages }: {
                                                 newRotates[index][0] = value;
                                                 setRotates(newRotates);
                                             }}
+                                            small
                                         />
                                     </TableCell>
                                 </TableRow>

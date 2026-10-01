@@ -5,6 +5,17 @@ import { Rotate } from "~/models/const";
 import type { TranscodeSettings } from "~/models/settings";
 
 
+export function formatBytes(bytes: number, decimals = 2): string {
+    if (bytes === 0) return "0 B";
+
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return `${parseFloat((bytes / k ** i).toFixed(decimals))} ${sizes[i]}`;
+}
+
 
 export function TaskInfoItemBase({ content, size = "body2", pl }: {
     content: [string, string | number][];
@@ -43,7 +54,7 @@ export function VideoInfoComponent({ video, index }: { video: VideoInfo, index?:
             <TaskInfoItemBase size="body1" content={[
                 ["Name", video.path.split("/").slice(-1)[0]],
                 ["Path", video.path],
-                ["Size", `${(video.size / 1024 / 1024).toFixed(2)} MB`],
+                ["Size", formatBytes(video.size)],
                 ["Codec", video.codec],
                 ["Width", video.width],
                 ["Height", video.height],
@@ -94,7 +105,7 @@ export function ImageInfoComponent({ image, index, hideOutput }: {
                     ? []
                     : [["Output Name", image.output_name] as [string, string]]
                 ),
-                ["Size", `${(image.size / 1024 / 1024).toFixed(2)} MB`],
+                ["Size", formatBytes(image.size)],
                 ["Width", image.width],
                 ["Height", image.height],
                 ["SAR", image.sar],

@@ -37,6 +37,7 @@ import {
     ImageArgsComponent,
     SettingsInfoComponent,
     TaskInfoItemBase,
+    formatBytes,
 } from "~/components/task_info";
 import { PanelTitle } from "./component";
 
@@ -57,7 +58,7 @@ function BaseItem({ image, head, detail, colSpan = 6 }: {
                     {image.width} x {image.height}
                 </TableCell>
                 <TableCell sx={{ whiteSpace: "nowrap" }}>
-                    {`${(image.size / 1024 / 1024).toFixed(2)} MB`}
+                    {formatBytes(image.size)}
                 </TableCell>
                 <TableCell sx={{ whiteSpace: "nowrap" }}>
                     {image.pix_fmt}
@@ -182,7 +183,7 @@ function ErrorItem({ image }: { image: ImageErrorItem }) {
 
 
 
-function StateListItem({ label, icon, head, body, defaultOpen = false, length, output }: {
+function StateListItem({ label, icon, head, body, defaultOpen = false, length, output, extend_info }: {
     label: string;
     icon: React.ReactNode;
     head?: React.ReactNode;
@@ -190,6 +191,7 @@ function StateListItem({ label, icon, head, body, defaultOpen = false, length, o
     defaultOpen?: boolean;
     length: number;
     output?: boolean;
+    extend_info?: React.ReactNode;
 }) {
     const [extend, setExtend] = useState<boolean>(defaultOpen);
 
@@ -202,6 +204,7 @@ function StateListItem({ label, icon, head, body, defaultOpen = false, length, o
                 <ListItemText>
                     {label} ({length})
                 </ListItemText>
+                {extend_info}
                 <ListItemIcon>
                     {extend ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
                 </ListItemIcon>
@@ -298,6 +301,13 @@ export default function ImageRunningProgress({ info }: { info: ImageRunning }) {
                                     now={now}
                                 />
                             )}
+                            extend_info={
+                                <ListItemText>
+                                    <Typography variant="body2" color="text.secondary">
+                                        <b>Total Size:</b> {formatBytes(info.pending.reduce((acc, image) => acc + image.size, 0))}
+                                    </Typography>
+                                </ListItemText>
+                            }
                         />
                         <StateListItem
                             label="Completed"
@@ -313,6 +323,25 @@ export default function ImageRunningProgress({ info }: { info: ImageRunning }) {
                                     image={image}
                                 />
                             )}
+                            extend_info={
+                                <ListItemText>
+                                    <Box sx={{ display: "flex", flexDirection: "row", gap: 3 }}>
+                                        {[
+                                            ["Total Input Size", formatBytes(info.completed.reduce((acc, image) => acc + image.input.size, 0))],
+                                            ["Total Output Size", formatBytes(info.completed.reduce((acc, image) => acc + image.output.size, 0))],
+                                            ["Average Compression Ratio", `${((1 - (
+                                                info.completed.reduce((acc, image) => acc + image.output.size, 0)
+                                                /
+                                                info.completed.reduce((acc, image) => acc + image.input.size, 0)
+                                            )) * 100).toFixed(2)}%`],
+                                        ].map(([label, text], index) =>
+                                            <Typography key={index} variant="body2" color="text.secondary">
+                                                <b>{label}:</b> {text}
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                </ListItemText>
+                            }
                         />
                     </List>
                 </NobarOverflow>
